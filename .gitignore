@@ -1,0 +1,128 @@
+# ============================================================================
+# 1. .NET / C# / WPF BUILD ARTIFACTS
+# ============================================================================
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+publish/
+
+# WPF specific generated files
+*_i.c
+*_p.c
+*_h.h
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.pch
+*.pdb
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+*.g.cs
+*.g.i.cs
+*.baml
+
+# NuGet & Packaging
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.assets.json
+*.nuget.cache
+
+# ============================================================================
+# 2. IDEs (Visual Studio, JetBrains Rider, VS Code)
+# ============================================================================
+# Visual Studio
+.vs/
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+launchSettings.json.user
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+*.DotSettings.user
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ============================================================================
+# 3. PROJECT DATA (SQLite, Scryfall Bulk Data, Image Cache)
+# ============================================================================
+# Runtime local folders
+[Dd]ata/
+[Dd]atabase/
+[Ii]mage[Cc]ache/
+[Cc]ache/
+
+# SQLite databases & write-ahead logs
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+
+# Scryfall bulk JSON downloads (prevent accidentally committing 150MB+ files)
+default-cards*.json
+oracle-cards*.json
+all-cards*.json
+rulings*.json
+scryfall-bulk*.json
+
+# ============================================================================
+# 4. AI CODING AGENTS & COPILOT
+# ============================================================================
+# Local agent caches, session histories, and temporary worktrees
+.copilot/
+.claude/
+.cursor/
+.continue/
+.windsurf/
+.aider*
+*.AICache
+.agent-cache/
+.mcp/
+
+# Agent directories (.agents/)
+# Ignora tutto il contenuto temporaneo/stato di .agents/, ma MANTIENI le skill
+# del progetto se vuoi versionarle nel repo:
+.agents/*
+!.agents/skills/
+
+# NOTA: Se preferisci ignorare ANCHE le skill dentro .agents/skills/ e .github/skills/
