@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace CommanderDeckBuilder.Data;
@@ -17,6 +17,10 @@ public sealed class ScryfallBulkMetadataClient
     public ScryfallBulkMetadataClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
+        if (_httpClient.DefaultRequestHeaders.UserAgent.Count == 0)
+        {
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("MTGgit/1.0");
+        }
     }
 
     /// \brief Retrieves and validates the default-cards dataset metadata.
@@ -26,21 +30,29 @@ public sealed class ScryfallBulkMetadataClient
     public async Task<BulkDatasetMetadata> GetDefaultCardsMetadataAsync(
         CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetFromJsonAsync<ScryfallBulkMetadataResponse>(
-            DefaultCardsEndpoint,
-            cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, DefaultCardsEndpoint);
+        request.Headers.Accept.ParseAdd("application/json");
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"Scryfall metadata request failed with {(int)response.StatusCode}: {responseBody}");
+        }
 
-        if (response?.DownloadUri is null || response.UpdatedAt is null)
+        var metadata = JsonSerializer.Deserialize<ScryfallBulkMetadataResponse>(responseBody);
+
+        if (metadata?.EffectiveDownloadUri is null || metadata.UpdatedAt is null)
         {
             throw new InvalidDataException("Scryfall bulk metadata is missing required fields.");
         }
 
-        if (!Uri.TryCreate(response.DownloadUri, UriKind.Absolute, out var downloadUri))
+        if (!Uri.TryCreate(metadata.EffectiveDownloadUri, UriKind.Absolute, out var downloadUri))
         {
             throw new InvalidDataException("Scryfall bulk metadata contains an invalid download URI.");
         }
 
-        return new BulkDatasetMetadata(downloadUri, response.UpdatedAt.Value);
+        return new BulkDatasetMetadata(downloadUri, metadata.UpdatedAt.Value);
     }
 
     /// \brief Represents the JSON response returned by Scryfall's bulk metadata endpoint.
@@ -49,7 +61,12 @@ public sealed class ScryfallBulkMetadataClient
         [JsonPropertyName("download_uri")]
         public string? DownloadUri { get; init; }
 
+        [JsonPropertyName("jsonl_download_uri")]
+        public string? JsonlDownloadUri { get; init; }
+
         [JsonPropertyName("updated_at")]
         public DateTimeOffset? UpdatedAt { get; init; }
+
+        public string? EffectiveDownloadUri => JsonlDownloadUri ?? DownloadUri;
     }
 }

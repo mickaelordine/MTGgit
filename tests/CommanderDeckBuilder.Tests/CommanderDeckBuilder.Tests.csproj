@@ -28,4 +28,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(RunScryfallIntegrationTests)' != 'true'">
+    <Compile Remove="Integration\**\*.cs" />
+  </ItemGroup>
+
 </Project>

@@ -26,6 +26,30 @@ public static class ScryfallBulkParser
         }
     }
 
+    /// \brief Enumerates newline-delimited Scryfall JSON objects incrementally.
+    /// \param stream The UTF-8 JSONL stream containing one card per line.
+    /// \param cancellationToken Cancels JSON parsing and enumeration.
+    /// \return An asynchronous sequence of source card documents.
+    public static async IAsyncEnumerable<ScryfallCardDocument> ReadJsonLinesAsync(
+        Stream stream,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var reader = new StreamReader(stream);
+        while (await reader.ReadLineAsync(cancellationToken) is { } line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            var source = JsonSerializer.Deserialize<JsonCard>(line);
+            if (source is not null)
+            {
+                yield return ToDocument(source);
+            }
+        }
+    }
+
     /// \brief Converts one deserialized JSON card into the application source model.
     /// \param source The deserialized JSON card.
     /// \return The source card document used by the mapper.

@@ -1,5 +1,6 @@
 using Dapper;
 using Microsoft.Data.Sqlite;
+using System.IO.Compression;
 
 namespace CommanderDeckBuilder.Data;
 
@@ -57,7 +58,7 @@ public sealed class ScryfallSyncService
         var totalBytes = response.Content.Headers.ContentLength;
         await _importer.ImportAsync(
             TrackProgress(
-                ScryfallBulkParser.ReadAsync(stream, cancellationToken),
+                ReadCardsAsync(stream, remote.DownloadUri, cancellationToken),
                 progress,
                 totalBytes,
                 cancellationToken),
@@ -65,6 +66,35 @@ public sealed class ScryfallSyncService
             cancellationToken);
 
         return new SyncResult(Downloaded: true);
+    }
+
+    /// \brief Selects the parser for the downloaded Scryfall representation.
+    /// \param stream The downloaded response stream.
+    /// \param downloadUri The URI used for the download.
+    /// \param cancellationToken Cancels decompression and parsing.
+    /// \return An asynchronous sequence of source card documents.
+    private static async IAsyncEnumerable<ScryfallCardDocument> ReadCardsAsync(
+        Stream stream,
+        Uri downloadUri,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (downloadUri.AbsolutePath.EndsWith(".gz", StringComparison.OrdinalIgnoreCase))
+        {
+            await using var gzipStream = new GZipStream(stream, CompressionMode.Decompress);
+            await foreach (var card in ScryfallBulkParser.ReadJsonLinesAsync(
+                               gzipStream,
+                               cancellationToken))
+            {
+                yield return card;
+            }
+
+            yield break;
+        }
+
+        await foreach (var card in ScryfallBulkParser.ReadAsync(stream, cancellationToken))
+        {
+            yield return card;
+        }
     }
 
     /// \brief Reads the locally committed default-cards timestamp.
