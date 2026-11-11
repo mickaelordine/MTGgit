@@ -3,10 +3,13 @@ using Microsoft.Data.Sqlite;
 
 namespace CommanderDeckBuilder.Data;
 
+/// \brief Reports progress while cards are synchronized.
 public sealed record SyncProgress(long CardsProcessed, long? TotalBytes);
 
+/// \brief Represents the outcome of one synchronization attempt.
 public sealed record SyncResult(bool Downloaded);
 
+/// \brief Coordinates metadata lookup, download, parsing, and SQLite import.
 public sealed class ScryfallSyncService
 {
     private readonly LocalStoragePaths _paths;
@@ -14,6 +17,10 @@ public sealed class ScryfallSyncService
     private readonly HttpClient _httpClient;
     private readonly ScryfallBulkImporter _importer;
 
+    /// \brief Initializes the synchronization service.
+    /// \param paths The local storage paths containing the database.
+    /// \param metadataClient The client used to retrieve remote dataset metadata.
+    /// \param httpClient The HTTP client used to download the bulk JSON.
     public ScryfallSyncService(
         LocalStoragePaths paths,
         ScryfallBulkMetadataClient metadataClient,
@@ -25,6 +32,11 @@ public sealed class ScryfallSyncService
         _importer = new ScryfallBulkImporter(paths);
     }
 
+    /// \brief Synchronizes the local default-cards dataset when it is stale.
+    /// \param progress Receives card and content-length progress updates, if supplied.
+    /// \param cancellationToken Cancels metadata lookup, download, parsing, or import.
+    /// \return A result indicating whether a download and import occurred.
+    /// \exception HttpRequestException Thrown when the download response is unsuccessful.
     public async Task<SyncResult> SynchronizeAsync(
         IProgress<SyncProgress>? progress = null,
         CancellationToken cancellationToken = default)
@@ -55,6 +67,10 @@ public sealed class ScryfallSyncService
         return new SyncResult(Downloaded: true);
     }
 
+    /// \brief Reads the locally committed default-cards timestamp.
+    /// \param cancellationToken Cancels the database operation.
+    /// \return The stored timestamp, or null when synchronization has never completed.
+    /// \exception InvalidDataException Thrown when the stored timestamp is malformed.
     private async Task<DateTimeOffset?> ReadLocalUpdatedAtAsync(
         CancellationToken cancellationToken)
     {
@@ -78,6 +94,12 @@ public sealed class ScryfallSyncService
         return updatedAt;
     }
 
+    /// \brief Maps parsed cards while reporting the number processed.
+    /// \param cards The asynchronous source-card sequence.
+    /// \param progress The optional progress receiver.
+    /// \param totalBytes The HTTP content length, when known.
+    /// \param cancellationToken Cancels enumeration.
+    /// \return An asynchronous sequence of mapped cards.
     private static async IAsyncEnumerable<MappedScryfallCard> TrackProgress(
         IAsyncEnumerable<ScryfallCardDocument> cards,
         IProgress<SyncProgress>? progress,

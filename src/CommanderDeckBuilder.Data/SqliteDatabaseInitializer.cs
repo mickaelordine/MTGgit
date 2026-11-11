@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 
 namespace CommanderDeckBuilder.Data;
 
+/// \brief Creates the local SQLite database directories and schema.
 public sealed class SqliteDatabaseInitializer
 {
     private const string Schema = """
@@ -74,11 +75,15 @@ public sealed class SqliteDatabaseInitializer
 
     private readonly LocalStoragePaths _paths;
 
+    /// \brief Initializes the database initializer.
+    /// \param paths The local storage paths used for database creation.
     public SqliteDatabaseInitializer(LocalStoragePaths paths)
     {
         _paths = paths;
     }
 
+    /// \brief Creates required directories and all missing SQLite tables.
+    /// \return This method completes after schema initialization.
     public void Initialize()
     {
         Directory.CreateDirectory(_paths.DatabaseDirectory);

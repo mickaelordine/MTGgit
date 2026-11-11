@@ -2,16 +2,25 @@ using Microsoft.Data.Sqlite;
 
 namespace CommanderDeckBuilder.Data;
 
+/// \brief Imports normalized Scryfall records into SQLite transactionally.
 public sealed class ScryfallBulkImporter
 {
     private const string DatasetName = "default-cards";
     private readonly LocalStoragePaths _paths;
 
+    /// \brief Initializes an importer for the configured local database.
+    /// \param paths The local storage paths containing the SQLite database.
     public ScryfallBulkImporter(LocalStoragePaths paths)
     {
         _paths = paths;
     }
 
+    /// \brief Imports cards and updates synchronization metadata atomically.
+    /// \param cards The asynchronous sequence of normalized card records.
+    /// \param updatedAt The remote dataset timestamp to store after success.
+    /// \param cancellationToken Cancels enumeration, SQL operations, or commit.
+    /// \return A task that completes after the transaction commits.
+    /// \exception Exception Propagates import failures and causes transaction rollback.
     public async Task ImportAsync(
         IAsyncEnumerable<MappedScryfallCard> cards,
         DateTimeOffset updatedAt,
@@ -31,6 +40,11 @@ public sealed class ScryfallBulkImporter
         await transaction.CommitAsync(cancellationToken);
     }
 
+    /// \brief Inserts or updates one oracle card within the active transaction.
+    /// \param connection The open SQLite connection.
+    /// \param transaction The transaction that owns the write.
+    /// \param card The normalized oracle card record.
+    /// \param cancellationToken Cancels the SQL command.
     private static async Task UpsertOracleCardAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -70,6 +84,11 @@ public sealed class ScryfallBulkImporter
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /// \brief Inserts or updates one card printing within the active transaction.
+    /// \param connection The open SQLite connection.
+    /// \param transaction The transaction that owns the write.
+    /// \param printing The normalized printing record.
+    /// \param cancellationToken Cancels the SQL command.
     private static async Task UpsertCardPrintingAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -109,6 +128,11 @@ public sealed class ScryfallBulkImporter
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /// \brief Stores the dataset timestamp within the active transaction.
+    /// \param connection The open SQLite connection.
+    /// \param transaction The transaction that owns the write.
+    /// \param updatedAt The remote dataset timestamp.
+    /// \param cancellationToken Cancels the SQL command.
     private static async Task UpsertSyncMetadataAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -127,6 +151,10 @@ public sealed class ScryfallBulkImporter
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /// \brief Adds a nullable value as a SQLite command parameter.
+    /// \param command The command receiving the parameter.
+    /// \param name The parameter name.
+    /// \param value The parameter value, or null.
     private static void AddParameter(
         SqliteCommand command,
         string name,

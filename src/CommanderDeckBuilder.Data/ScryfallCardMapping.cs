@@ -1,5 +1,6 @@
 namespace CommanderDeckBuilder.Data;
 
+/// \brief Contains the card and printing fields read from Scryfall.
 public sealed class ScryfallCardDocument
 {
     public string OracleId { get; init; } = string.Empty;
@@ -21,6 +22,7 @@ public sealed class ScryfallCardDocument
     public IReadOnlyList<ScryfallFaceDocument> Faces { get; init; } = [];
 }
 
+/// \brief Contains the fields read from one Scryfall card face.
 public sealed class ScryfallFaceDocument
 {
     public string Name { get; init; } = string.Empty;
@@ -29,6 +31,7 @@ public sealed class ScryfallFaceDocument
     public string? ImageUriArtCrop { get; init; }
 }
 
+/// \brief Represents the normalized oracle-level card data stored locally.
 public sealed record OracleCardRecord(
     string OracleId,
     string Name,
@@ -41,6 +44,7 @@ public sealed record OracleCardRecord(
     bool IsPossibleCommander,
     string? CommanderLegality);
 
+/// \brief Represents one released printing of an oracle card.
 public sealed record CardPrintingRecord(
     string ScryfallId,
     string OracleId,
@@ -53,12 +57,17 @@ public sealed record CardPrintingRecord(
     string? ImageUriArtCrop,
     string? BackImageUriNormal);
 
+/// \brief Couples an oracle card record with one printing record.
 public sealed record MappedScryfallCard(
     OracleCardRecord OracleCard,
     CardPrintingRecord CardPrinting);
 
+/// \brief Converts Scryfall source documents into normalized persistence records.
 public static class ScryfallCardMapper
 {
+    /// \brief Maps one source card and its faces into oracle and printing records.
+    /// \param source The Scryfall card document to map.
+    /// \return The normalized oracle card and printing records.
     public static MappedScryfallCard Map(ScryfallCardDocument source)
     {
         var name = source.Name.Trim();

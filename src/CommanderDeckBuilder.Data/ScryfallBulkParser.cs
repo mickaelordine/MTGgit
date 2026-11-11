@@ -4,8 +4,13 @@ using System.Text.Json.Serialization;
 
 namespace CommanderDeckBuilder.Data;
 
+/// \brief Parses Scryfall's default-cards JSON as an asynchronous stream.
 public static class ScryfallBulkParser
 {
+    /// \brief Enumerates source card documents without loading the complete JSON array.
+    /// \param stream The UTF-8 JSON stream containing a Scryfall card array.
+    /// \param cancellationToken Cancels JSON parsing and enumeration.
+    /// \return An asynchronous sequence of source card documents.
     public static async IAsyncEnumerable<ScryfallCardDocument> ReadAsync(
         Stream stream,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -21,6 +26,9 @@ public static class ScryfallBulkParser
         }
     }
 
+    /// \brief Converts one deserialized JSON card into the application source model.
+    /// \param source The deserialized JSON card.
+    /// \return The source card document used by the mapper.
     private static ScryfallCardDocument ToDocument(JsonCard source)
     {
         return new ScryfallCardDocument
@@ -51,6 +59,7 @@ public static class ScryfallBulkParser
         };
     }
 
+    /// \brief Represents one Scryfall card JSON object.
     private sealed class JsonCard
     {
         [JsonPropertyName("oracle_id")]
@@ -102,6 +111,7 @@ public static class ScryfallBulkParser
         public JsonFace[]? Faces { get; init; }
     }
 
+    /// \brief Represents one Scryfall face JSON object.
     private sealed class JsonFace //JsonfACE ;)
     {
         [JsonPropertyName("name")]
@@ -114,6 +124,7 @@ public static class ScryfallBulkParser
         public JsonImageUris? ImageUris { get; init; }
     }
 
+    /// \brief Represents image URI values in Scryfall JSON.
     private sealed class JsonImageUris
     {
         [JsonPropertyName("normal")]
@@ -123,6 +134,7 @@ public static class ScryfallBulkParser
         public string? ArtCrop { get; init; }
     }
 
+    /// \brief Represents the Commander legality section in Scryfall JSON.
     private sealed class JsonLegalities
     {
         [JsonPropertyName("commander")]
