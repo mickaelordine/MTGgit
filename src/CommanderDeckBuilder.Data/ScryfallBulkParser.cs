@@ -102,7 +102,7 @@ public static class ScryfallBulkParser
         public JsonFace[]? Faces { get; init; }
     }
 
-    private sealed class JsonFace
+    private sealed class JsonFace //JsonfACE ;)
     {
         [JsonPropertyName("name")]
         public string? Name { get; init; }
