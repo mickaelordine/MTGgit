@@ -38,6 +38,38 @@ public sealed class SqliteDatabaseInitializer
             CreatedAt TEXT NOT NULL,
             Snapshot TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS OracleCards (
+            OracleId TEXT NOT NULL PRIMARY KEY,
+            Name TEXT NOT NULL,
+            NormalizedName TEXT NOT NULL,
+            ManaCost TEXT,
+            Cmc REAL NOT NULL,
+            TypeLine TEXT NOT NULL,
+            OracleText TEXT,
+            ColorIdentity TEXT NOT NULL,
+            IsPossibleCommander INTEGER NOT NULL,
+            CommanderLegality TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS CardPrintings (
+            ScryfallId TEXT NOT NULL PRIMARY KEY,
+            OracleId TEXT NOT NULL,
+            SetCode TEXT NOT NULL,
+            SetName TEXT NOT NULL,
+            CollectorNumber TEXT NOT NULL,
+            Rarity TEXT NOT NULL,
+            ReleasedAt TEXT,
+            ImageUriNormal TEXT,
+            ImageUriArtCrop TEXT,
+            BackImageUriNormal TEXT,
+            FOREIGN KEY (OracleId) REFERENCES OracleCards (OracleId)
+        );
+
+        CREATE TABLE IF NOT EXISTS SyncMetadata (
+            DatasetName TEXT NOT NULL PRIMARY KEY,
+            UpdatedAt TEXT NOT NULL
+        );
         """;
 
     private readonly LocalStoragePaths _paths;
