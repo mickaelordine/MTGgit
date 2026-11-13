@@ -7,5 +7,6 @@ public sealed record CardSearchCandidate(
     string OracleId,
     string Name,
     string ColorIdentity,
-    bool IsPossibleCommander
+    bool IsPossibleCommander,
+    string NormalizedName = ""
     );
