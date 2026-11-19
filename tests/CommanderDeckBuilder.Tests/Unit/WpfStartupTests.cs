@@ -1,6 +1,8 @@
 using System.IO;
 using System.Threading;
 using System.Xml.Linq;
+using CommanderDeckBuilder.Core;
+using CommanderDeckBuilder.Data;
 using CommanderDeckBuilder.UI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -38,6 +40,19 @@ public sealed class Slice1WpfStartupTests
 
             Assert.NotNull(provider.GetService<MainWindow>());
             Assert.NotNull(provider.GetService<MainWindowViewModel>());
+        });
+    }
+
+    [Fact]
+    public void Service_provider_registers_the_card_search_service()
+    {
+        RunOnSta(() =>
+        {
+            using var provider = AppHost.CreateServiceProvider();
+
+            var service = provider.GetRequiredService<ICardSearchService>();
+
+            Assert.IsType<CardSearchService>(service);
         });
     }
 

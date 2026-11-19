@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using CommanderDeckBuilder.Core;
 using CommanderDeckBuilder.Data;
 
@@ -14,7 +15,7 @@ public sealed class CardSearchServiceTests
         fixture.InsertCard("oracle-ring", "Ring Bearer", "ring bearer", "U", false);
         fixture.InsertCard("oracle-sol", "Sol Ring", "sol ring", string.Empty, false);
         fixture.InsertCard("oracle-off-color", "Sol Talisman", "sol talisman", "R", false);
-        var service = new CardSearchService(new OracleCardSearchRepository(fixture.Paths));
+        var service = CreateService(fixture);
 
         var results = await service.SearchCardsAsync(
             "sol",
@@ -33,7 +34,7 @@ public sealed class CardSearchServiceTests
         fixture.Initialize();
         fixture.InsertCard("oracle-legend", "Legendary Hero", "legendary hero", "U", true);
         fixture.InsertCard("oracle-ordinary", "Ordinary Hero", "ordinary hero", "U", false);
-        var service = new CardSearchService(new OracleCardSearchRepository(fixture.Paths));
+        var service = CreateService(fixture);
 
         var results = await service.SearchCardsAsync(
             "hero",
@@ -53,7 +54,7 @@ public sealed class CardSearchServiceTests
         fixture.InsertCard("oracle-one", "Alpha Card", "alpha card", string.Empty, false);
         fixture.InsertCard("oracle-two", "Beta Card", "beta card", string.Empty, false);
         fixture.InsertCard("oracle-three", "Gamma Card", "gamma card", string.Empty, false);
-        var service = new CardSearchService(new OracleCardSearchRepository(fixture.Paths));
+        var service = CreateService(fixture);
 
         var defaultResults = await service.SearchCardsAsync(
             "card",
@@ -82,6 +83,75 @@ public sealed class CardSearchServiceTests
             ColorIdentity.Parse("U"));
 
         Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task Search_propagates_repository_failures()
+    {
+        using var fixture = new SearchStorageFixture();
+        fixture.Initialize();
+        fixture.InsertCard("oracle-invalid", "Invalid Card", "invalid card", "X", false);
+        var service = CreateService(fixture);
+
+        await Assert.ThrowsAsync<FormatException>(
+            () => service.SearchCardsAsync(
+                "invalid",
+                ColorIdentity.Parse("U")));
+    }
+
+    [Fact]
+    public async Task Search_can_be_called_from_a_thread_pool_thread()
+    {
+        using var fixture = new SearchStorageFixture();
+        fixture.Initialize();
+        fixture.InsertCard("oracle-thread", "Thread Safe Card", "thread safe card", string.Empty, false);
+        var service = CreateService(fixture);
+
+        var results = await Task.Run(
+            () => service.SearchCardsAsync(
+                "thread",
+                ColorIdentity.Parse("U")));
+
+        var result = Assert.Single(results);
+        Assert.Equal("oracle-thread", result.OracleId);
+    }
+
+    [Fact]
+    public async Task Repeated_searches_stay_under_the_performance_gate()
+    {
+        const int representativeCardCount = 500;
+        using var fixture = new SearchStorageFixture();
+        fixture.Initialize();
+        for (var index = 0; index < representativeCardCount; index++)
+        {
+            fixture.InsertCard(
+                $"oracle-{index}",
+                $"Representative Card {index}",
+                $"representative card {index}",
+                string.Empty,
+                false);
+        }
+
+        var service = CreateService(fixture);
+        await service.SearchCardsAsync("representative", ColorIdentity.Parse("U"));
+
+        var stopwatch = Stopwatch.StartNew();
+        for (var iteration = 0; iteration < 10; iteration++)
+        {
+            await service.SearchCardsAsync("representative", ColorIdentity.Parse("U"));
+        }
+
+        stopwatch.Stop();
+        var averageMilliseconds = stopwatch.Elapsed.TotalMilliseconds / 10;
+
+        Assert.True(
+            averageMilliseconds < 30,
+            $"Average search time was {averageMilliseconds:F2} ms for {representativeCardCount} cards.");
+    }
+
+    private static CardSearchService CreateService(SearchStorageFixture fixture)
+    {
+        return new CardSearchService(new OracleCardSearchRepository(fixture.Paths));
     }
 
 }

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using CommanderDeckBuilder.Core;
 using CommanderDeckBuilder.Data;
 
 namespace CommanderDeckBuilder.UI;
@@ -13,6 +14,8 @@ public static class AppHost
         var services = new ServiceCollection();
         services.AddSingleton<LocalStoragePaths>();
         services.AddSingleton<SqliteDatabaseInitializer>();
+        services.AddSingleton<OracleCardSearchRepository>();
+        services.AddSingleton<ICardSearchService, CardSearchService>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
         return services.BuildServiceProvider();
