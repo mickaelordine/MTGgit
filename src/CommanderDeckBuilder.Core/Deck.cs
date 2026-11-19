@@ -5,6 +5,8 @@ namespace CommanderDeckBuilder.Core;
 /// </summary>
 public sealed class Deck
 {
+    private readonly List<DeckCardEntry> _entries = [];
+
     private Deck(DeckCommander primaryCommander, DeckCommander? secondaryCommander)
     {
         PrimaryCommander = primaryCommander;
@@ -26,6 +28,11 @@ public sealed class Deck
     /// Gets the combined color identity derived from all selected Commander slots.
     /// </summary>
     public ColorIdentity EffectiveColorIdentity { get; private set; }
+
+    /// <summary>
+    /// Gets the card entries currently stored in the deck.
+    /// </summary>
+    public IReadOnlyCollection<DeckCardEntry> Entries => _entries.AsReadOnly();
 
     /// <summary>
     /// Creates a deck from the required primary Commander.
@@ -60,18 +67,142 @@ public sealed class Deck
 
         PrimaryCommander = primaryCommander;
         EffectiveColorIdentity = CreateEffectiveColorIdentity(primaryCommander, SecondaryCommander);
+        new DeckValidationService().Validate(this);
     }
 
     /// <summary>
-    /// Replaces the secondary Commander and derives the effective identity again.
+    /// Replaces or removes the secondary Commander and revalidates every card entry.
     /// </summary>
-    /// <param name="secondaryCommander">The replacement secondary Commander.</param>
+    /// <param name="secondaryCommander">The replacement secondary Commander, or null to remove it.</param>
     public void ChangeSecondaryCommander(DeckCommander? secondaryCommander)
     {
-        ArgumentNullException.ThrowIfNull(secondaryCommander);
+        if (secondaryCommander is not null
+            && secondaryCommander.Mechanic == DeckCommanderMechanic.Primary)
+        {
+            throw new ArgumentException(
+                "A secondary Commander must use Partner, Background or Doctor's Companion.",
+                nameof(secondaryCommander));
+        }
 
         SecondaryCommander = secondaryCommander;
         EffectiveColorIdentity = CreateEffectiveColorIdentity(PrimaryCommander, secondaryCommander);
+        new DeckValidationService().Validate(this);
+    }
+
+    /// <summary>
+    /// Adds a card to a zone, incrementing an existing entry for the same oracle and printing.
+    /// </summary>
+    public void AddCard(
+        string oracleId,
+        string selectedPrintingScryfallId,
+        DeckZone zone,
+        IEnumerable<string>? tags = null,
+        string? cardName = null,
+        string? cardTypeLine = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(oracleId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(selectedPrintingScryfallId);
+
+        var existingEntry = _entries.SingleOrDefault(entry =>
+            entry.OracleId.Equals(oracleId, StringComparison.Ordinal)
+            && entry.SelectedPrintingScryfallId.Equals(selectedPrintingScryfallId, StringComparison.Ordinal));
+
+        if (existingEntry is not null)
+        {
+            existingEntry.IncrementQuantity();
+            new DeckValidationService().Validate(this);
+            return;
+        }
+
+        _entries.Add(new DeckCardEntry(
+            oracleId,
+            selectedPrintingScryfallId,
+            1,
+            zone,
+            tags,
+            cardName,
+            cardTypeLine));
+        new DeckValidationService().Validate(this);
+    }
+
+    /// <summary>
+    /// Increments the quantity of the entry for the selected printing.
+    /// </summary>
+    public void IncrementCard(string selectedPrintingScryfallId)
+    {
+        GetEntry(selectedPrintingScryfallId).IncrementQuantity();
+        new DeckValidationService().Validate(this);
+    }
+
+    /// <summary>
+    /// Decrements the quantity of the entry for the selected printing.
+    /// The entry is removed when its last copy is decremented.
+    /// </summary>
+    public void DecrementCard(string selectedPrintingScryfallId)
+    {
+        var entry = GetEntry(selectedPrintingScryfallId);
+        if (!entry.DecrementQuantity())
+        {
+            _entries.Remove(entry);
+        }
+        new DeckValidationService().Validate(this);
+    }
+
+    /// <summary>
+    /// Removes every copy represented by the entry for the selected printing.
+    /// </summary>
+    public void RemoveCard(string selectedPrintingScryfallId)
+    {
+        _entries.Remove(GetEntry(selectedPrintingScryfallId));
+        new DeckValidationService().Validate(this);
+    }
+
+    /// <summary>
+    /// Moves an entry to another deck zone without changing its card data.
+    /// </summary>
+    public void MoveCard(string selectedPrintingScryfallId, DeckZone destination)
+    {
+        GetEntry(selectedPrintingScryfallId).MoveTo(destination);
+        new DeckValidationService().Validate(this);
+    }
+
+    /// <summary>
+    /// Changes the selected printing for an existing entry.
+    /// </summary>
+    public void ChangePrinting(
+        string currentPrintingScryfallId,
+        string selectedPrintingScryfallId)
+    {
+        GetEntry(currentPrintingScryfallId).ChangePrinting(selectedPrintingScryfallId);
+        new DeckValidationService().Validate(this);
+    }
+
+    /// <summary>
+    /// Adds a custom tag to an existing entry.
+    /// </summary>
+    public void AddTag(string selectedPrintingScryfallId, string tag)
+    {
+        GetEntry(selectedPrintingScryfallId).AddTag(tag);
+    }
+
+    /// <summary>
+    /// Removes a custom tag from an existing entry.
+    /// </summary>
+    public void RemoveTag(string selectedPrintingScryfallId, string tag)
+    {
+        GetEntry(selectedPrintingScryfallId).RemoveTag(tag);
+    }
+
+    private DeckCardEntry GetEntry(string selectedPrintingScryfallId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(selectedPrintingScryfallId);
+
+        return _entries.SingleOrDefault(entry =>
+            entry.SelectedPrintingScryfallId.Equals(
+                selectedPrintingScryfallId,
+                StringComparison.Ordinal))
+            ?? throw new InvalidOperationException(
+                $"No deck card entry uses printing '{selectedPrintingScryfallId}'.");
     }
 
     /// <summary>
