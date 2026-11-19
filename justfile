@@ -10,7 +10,7 @@ test-unit:
     dotnet test tests\CommanderDeckBuilder.Tests\CommanderDeckBuilder.Tests.csproj --no-restore
 
 test-integration:
-    dotnet test tests\CommanderDeckBuilder.Tests\CommanderDeckBuilder.Tests.csproj --no-restore -p:RunScryfallIntegrationTests=true --filter FullyQualifiedName~ScryfallApiIntegrationTests
+    dotnet test tests\CommanderDeckBuilder.Tests\CommanderDeckBuilder.Tests.csproj --no-restore -p:RunScryfallIntegrationTests=true --filter Category=Integration
 
 run:
     dotnet run --project src\CommanderDeckBuilder.UI\CommanderDeckBuilder.UI.csproj
