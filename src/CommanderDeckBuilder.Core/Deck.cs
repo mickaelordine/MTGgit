@@ -110,6 +110,7 @@ public sealed class Deck
         if (existingEntry is not null)
         {
             existingEntry.IncrementQuantity();
+            existingEntry.UpdateMetadata(cardName, cardTypeLine, tags);
             new DeckValidationService().Validate(this);
             return;
         }
@@ -173,7 +174,30 @@ public sealed class Deck
         string currentPrintingScryfallId,
         string selectedPrintingScryfallId)
     {
-        GetEntry(currentPrintingScryfallId).ChangePrinting(selectedPrintingScryfallId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(selectedPrintingScryfallId);
+
+        var source = GetEntry(currentPrintingScryfallId);
+        var target = _entries.SingleOrDefault(entry =>
+            !ReferenceEquals(entry, source)
+            && entry.SelectedPrintingScryfallId.Equals(
+                selectedPrintingScryfallId,
+                StringComparison.Ordinal));
+
+        if (target is not null)
+        {
+            if (!target.OracleId.Equals(source.OracleId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "A printing identifier cannot be reassigned to a different Oracle card.");
+            }
+
+            target.MergeFrom(source);
+            _entries.Remove(source);
+            new DeckValidationService().Validate(this);
+            return;
+        }
+
+        source.ChangePrinting(selectedPrintingScryfallId);
         new DeckValidationService().Validate(this);
     }
 
