@@ -45,7 +45,7 @@ public sealed class DeckViewProjectionTests
         Assert.Equal("Other", new DeckViewProjection().GetCategory(entry));
     }
 
-    [Fact(Skip = "Inactive exact-coding test")]
+    [Fact]
     public void TagsOffGroupsCardsByCategory()
     {
         var deck = CreateDeck();
@@ -58,7 +58,7 @@ public sealed class DeckViewProjectionTests
         Assert.Contains(groups, group => group.Name == "Instant");
     }
 
-    [Fact(Skip = "Inactive exact-coding test")]
+    [Fact]
     public void TagsOnGroupsTaggedCardsByTag()
     {
         var deck = CreateDeck();
@@ -69,7 +69,7 @@ public sealed class DeckViewProjectionTests
         Assert.Contains(groups, group => group.Name == "#ramp");
     }
 
-    [Fact(Skip = "Inactive exact-coding test")]
+    [Fact]
     public void UntaggedCardsAreGroupedByCategoryUnderUntagged()
     {
         var deck = CreateDeck();
@@ -82,7 +82,7 @@ public sealed class DeckViewProjectionTests
             && group.Entries.Count == 1);
     }
 
-    [Fact(Skip = "Inactive exact-coding test")]
+    [Fact]
     public void MultiTaggedCardAppearsInEveryTagGroup()
     {
         var deck = CreateDeck();
@@ -96,7 +96,7 @@ public sealed class DeckViewProjectionTests
         Assert.Single(wincon.Entries);
     }
 
-    [Fact(Skip = "Inactive exact-coding test")]
+    [Fact]
     public void FilterByNormalizedTagReturnsOnlyMatches()
     {
         var deck = CreateDeck();
@@ -108,7 +108,7 @@ public sealed class DeckViewProjectionTests
         Assert.Single(entries);
     }
 
-    [Fact(Skip = "Inactive exact-coding test")]
+    [Fact]
     public void UnknownTagFilterReturnsNoCards()
     {
         var deck = CreateDeck();
@@ -117,7 +117,7 @@ public sealed class DeckViewProjectionTests
         Assert.Empty(new DeckViewProjection().FilterByTag(deck, "#Draw"));
     }
 
-    [Theory(Skip = "Inactive exact-coding test")]
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void EmptyDeckProducesNoGroups(bool tagsEnabled)

@@ -247,9 +247,7 @@ public sealed class DeckCardEntry
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tag);
 
-        var normalized = string.Concat(
-            tag.Trim().ToLowerInvariant()
-                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        var normalized = TagText.Normalize(tag);
 
         var prefix = normalized.StartsWith("#!", StringComparison.Ordinal)
             ? "#!"

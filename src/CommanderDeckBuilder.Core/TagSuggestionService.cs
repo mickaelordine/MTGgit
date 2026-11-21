@@ -12,7 +12,7 @@ public sealed class TagSuggestionService : ITagSuggestionService
         string? query)
     {
         ArgumentNullException.ThrowIfNull(currentDeck);
-        var normalizedQuery = NormalizeQuery(query);
+        var normalizedQuery = TagText.Normalize(query);
         if (normalizedQuery.Length == 0)
         {
             return Array.Empty<string>();
@@ -50,17 +50,5 @@ public sealed class TagSuggestionService : ITagSuggestionService
             .Where(tag => tag.Contains(normalizedQuery, StringComparison.Ordinal))
             .OrderBy(tag => tag, StringComparer.Ordinal)
             .ToArray();
-    }
-
-    private static string NormalizeQuery(string? query)
-    {
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            return string.Empty;
-        }
-
-        return string.Concat(
-            query.Trim().ToLowerInvariant()
-                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 }

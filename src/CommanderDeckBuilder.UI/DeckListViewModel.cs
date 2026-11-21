@@ -9,6 +9,9 @@ namespace CommanderDeckBuilder.UI;
 /// </summary>
 public sealed partial class DeckListViewModel : ObservableObject
 {
+    private readonly Deck _deck;
+    private readonly DeckViewProjection _projection = new();
+
     /// <summary>
     /// Creates the deck-list view model over a deck.
     /// </summary>
@@ -16,13 +19,37 @@ public sealed partial class DeckListViewModel : ObservableObject
     public DeckListViewModel(Deck deck)
     {
         ArgumentNullException.ThrowIfNull(deck);
-        throw new NotImplementedException();
+        _deck = deck;
+        Refresh();
     }
 
     /// <summary>
     /// Gets the current grouped deck content.
     /// </summary>
-    public ObservableCollection<DeckViewGroup> Groups => throw new NotImplementedException();
+    public ObservableCollection<DeckViewGroup> Groups { get; } = [];
+
+    private void Refresh()
+    {
+        Groups.Clear();
+        foreach (var group in BuildGroups())
+        {
+            Groups.Add(group);
+        }
+    }
+
+    private IEnumerable<DeckViewGroup> BuildGroups()
+    {
+        var groups = _projection.GetGroups(_deck, TagsEnabled);
+        if (string.IsNullOrWhiteSpace(TagFilter))
+        {
+            return groups;
+        }
+
+        var matches = _projection.FilterByTag(_deck, TagFilter).ToHashSet();
+        return groups
+            .Select(group => group with { Entries = group.Entries.Where(matches.Contains).ToArray() })
+            .Where(group => group.Entries.Count > 0);
+    }
 
     /// <summary>
     /// Gets or sets whether tagged grouping is active.
@@ -35,4 +62,8 @@ public sealed partial class DeckListViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private string? _tagFilter;
+
+    partial void OnTagsEnabledChanged(bool value) => Refresh();
+
+    partial void OnTagFilterChanged(string? value) => Refresh();
 }

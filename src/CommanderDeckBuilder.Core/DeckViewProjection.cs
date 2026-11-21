@@ -23,7 +23,30 @@ public sealed class DeckViewProjection
     public IReadOnlyCollection<DeckViewGroup> GetGroups(Deck deck, bool tagsEnabled)
     {
         ArgumentNullException.ThrowIfNull(deck);
-        throw new NotImplementedException();
+
+        if (!tagsEnabled)
+        {
+            return deck.Entries
+                .GroupBy(GetCategory)
+                .Select(group => new DeckViewGroup(group.Key, group.ToArray()))
+                .ToArray();
+        }
+
+        return deck.Entries
+            .SelectMany(GroupKeysFor)
+            .GroupBy(pair => pair.Key)
+            .Select(group => new DeckViewGroup(group.Key, group.Select(pair => pair.Entry).ToArray()))
+            .ToArray();
+
+        IEnumerable<(string Key, DeckCardEntry Entry)> GroupKeysFor(DeckCardEntry entry)
+        {
+            if (entry.Tags.Count == 0)
+            {
+                return [($"Untagged: {GetCategory(entry)}", entry)];
+            }
+
+            return entry.Tags.Select(tag => (tag, entry));
+        }
     }
 
     /// <summary>
@@ -32,7 +55,16 @@ public sealed class DeckViewProjection
     public IReadOnlyCollection<DeckCardEntry> FilterByTag(Deck deck, string? tag)
     {
         ArgumentNullException.ThrowIfNull(deck);
-        throw new NotImplementedException();
+
+        var normalizedTag = TagText.Normalize(tag);
+        if (normalizedTag.Length == 0)
+        {
+            return Array.Empty<DeckCardEntry>();
+        }
+
+        return deck.Entries
+            .Where(entry => entry.Tags.Contains(normalizedTag, StringComparer.Ordinal))
+            .ToArray();
     }
 
     /// <summary>

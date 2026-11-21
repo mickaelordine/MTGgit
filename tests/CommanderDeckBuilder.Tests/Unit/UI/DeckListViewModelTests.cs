@@ -5,7 +5,7 @@ namespace CommanderDeckBuilder.Tests;
 
 public sealed class DeckListViewModelTests
 {
-    [Fact(Skip = "Inactive exact-coding test")]
+    [Fact]
     public void DefaultGroupsExposeCardCategories()
     {
         var deck = CreateDeck();
@@ -18,7 +18,7 @@ public sealed class DeckListViewModelTests
         Assert.Contains(viewModel.Groups, group => group.Name == "Instant");
     }
 
-    [Fact(Skip = "Inactive exact-coding test")]
+    [Fact]
     public void EnablingTagsRegroupsByTag()
     {
         var deck = CreateDeck();
@@ -30,7 +30,7 @@ public sealed class DeckListViewModelTests
         Assert.Contains(viewModel.Groups, group => group.Name == "#ramp");
     }
 
-    [Fact(Skip = "Inactive exact-coding test")]
+    [Fact]
     public void SettingTagFilterLimitsGroupsToMatches()
     {
         var deck = CreateDeck();
@@ -45,7 +45,7 @@ public sealed class DeckListViewModelTests
         Assert.Equal("printing-bear", entries[0].SelectedPrintingScryfallId);
     }
 
-    [Fact(Skip = "Inactive exact-coding test")]
+    [Fact]
     public void TogglingTagsRaisesGroupsCollectionChanged()
     {
         var deck = CreateDeck();
@@ -59,7 +59,7 @@ public sealed class DeckListViewModelTests
         Assert.True(raised);
     }
 
-    [Fact(Skip = "Inactive exact-coding test")]
+    [Fact]
     public void ClearingTagFilterRestoresGroupedContent()
     {
         var deck = CreateDeck();
