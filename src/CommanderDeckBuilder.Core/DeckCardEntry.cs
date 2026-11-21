@@ -25,7 +25,7 @@ public sealed class DeckCardEntry
         SelectedPrintingScryfallId = selectedPrintingScryfallId;
         Quantity = quantity;
         Zone = zone;
-        Tags = (tags ?? []).Distinct(StringComparer.Ordinal).ToArray();
+        Tags = NormalizeTags(tags);
         CardColorIdentity = ColorIdentity.Parse("C");
         CardName = string.IsNullOrWhiteSpace(cardName) ? oracleId : cardName;
         CardTypeLine = cardTypeLine ?? string.Empty;
@@ -80,11 +80,13 @@ public sealed class DeckCardEntry
     /// <summary>
     /// Updates Oracle-level metadata and merges custom tags for an existing printing entry.
     /// </summary>
-    public void UpdateMetadata(
+    public bool UpdateMetadata(
         string? cardName,
         string? cardTypeLine,
         IEnumerable<string>? tags)
     {
+        var tagsChanged = false;
+
         if (!string.IsNullOrWhiteSpace(cardName))
         {
             CardName = cardName;
@@ -97,19 +99,23 @@ public sealed class DeckCardEntry
 
         foreach (var tag in tags ?? [])
         {
-            AddTag(tag);
+            tagsChanged |= AddTag(tag);
         }
+
+        return tagsChanged;
     }
 
     /// <summary>
     /// Merges quantities and tags when another entry represents the same Oracle and printing.
     /// </summary>
-    public void MergeFrom(DeckCardEntry source)
+    public bool MergeFrom(DeckCardEntry source)
     {
         ArgumentNullException.ThrowIfNull(source);
 
+        var tagsBefore = Tags.ToArray();
         Quantity += source.Quantity;
-        Tags = source.Tags.Concat(Tags).Distinct(StringComparer.Ordinal).ToArray();
+        Tags = NormalizeTags(source.Tags.Concat(Tags));
+        return !tagsBefore.SequenceEqual(Tags, StringComparer.Ordinal);
     }
 
     /// <summary>
@@ -162,22 +168,101 @@ public sealed class DeckCardEntry
     /// <summary>
     /// Adds a custom tag if it is not already present.
     /// </summary>
-    public void AddTag(string tag)
+    public bool AddTag(string tag)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+        var normalizedTag = NormalizeTag(tag);
+        var separatorIndex = normalizedTag.IndexOf('#');
+        var tagName = normalizedTag[(separatorIndex + 1)..];
 
-        if (!Tags.Contains(tag, StringComparer.Ordinal))
+        if (normalizedTag.StartsWith("#!", StringComparison.Ordinal))
         {
-            Tags = Tags.Append(tag).Distinct(StringComparer.Ordinal).ToArray();
+            var localTag = "#" + tagName;
+            var localRemoved = Tags.Contains(localTag, StringComparer.Ordinal);
+            var globalExists = Tags.Contains(normalizedTag, StringComparer.Ordinal);
+
+            Tags = Tags.Where(existingTag => !existingTag.Equals(localTag, StringComparison.Ordinal))
+                .ToArray();
+
+            if (!globalExists)
+            {
+                Tags = Tags.Append(normalizedTag).ToArray();
+            }
+
+            Tags = NormalizeTags(Tags);
+            return localRemoved || !globalExists;
         }
+
+        var globalTag = "#!" + tagName;
+        if (Tags.Contains(globalTag, StringComparer.Ordinal))
+        {
+            return false;
+        }
+
+        if (!Tags.Contains(normalizedTag, StringComparer.Ordinal))
+        {
+            Tags = Tags.Append(normalizedTag)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(existingTag => existingTag, StringComparer.Ordinal)
+                .ToArray();
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
     /// Removes a custom tag if it is present.
     /// </summary>
-    public void RemoveTag(string tag)
+    public bool RemoveTag(string tag)
+    {
+        var normalizedTag = NormalizeTag(tag);
+        var originalCount = Tags.Count;
+        Tags = Tags.Where(existingTag => !existingTag.Equals(normalizedTag, StringComparison.Ordinal))
+            .OrderBy(existingTag => existingTag, StringComparer.Ordinal)
+            .ToArray();
+        return Tags.Count != originalCount;
+    }
+
+    private static IReadOnlyCollection<string> NormalizeTags(IEnumerable<string>? tags)
+    {
+        var normalizedTags = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var tag in tags ?? [])
+        {
+            normalizedTags.Add(NormalizeTag(tag));
+        }
+
+        foreach (var globalTag in normalizedTags
+            .Where(tag => tag.StartsWith("#!", StringComparison.Ordinal))
+            .ToArray())
+        {
+            normalizedTags.Remove("#" + globalTag[2..]);
+        }
+
+        return normalizedTags
+            .OrderBy(tag => tag, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static string NormalizeTag(string tag)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tag);
-        Tags = Tags.Where(existingTag => !existingTag.Equals(tag, StringComparison.Ordinal)).ToArray();
+
+        var normalized = TagText.Normalize(tag);
+
+        var prefix = normalized.StartsWith("#!", StringComparison.Ordinal)
+            ? "#!"
+            : normalized.StartsWith("#", StringComparison.Ordinal)
+                ? "#"
+                : throw new ArgumentException(
+                    "Custom tags must start with '#' or '#!'.",
+                    nameof(tag));
+
+        var name = normalized[prefix.Length..];
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Custom tags must include a name.", nameof(tag));
+        }
+
+        return prefix + name;
     }
 }
