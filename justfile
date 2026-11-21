@@ -12,5 +12,9 @@ test-unit:
 test-integration:
     dotnet test tests\CommanderDeckBuilder.Tests\CommanderDeckBuilder.Tests.csproj --no-restore -p:RunScryfallIntegrationTests=true --filter Category=Integration
 
+all:
+    just build
+    just test all
+
 run:
     dotnet run --project src\CommanderDeckBuilder.UI\CommanderDeckBuilder.UI.csproj
