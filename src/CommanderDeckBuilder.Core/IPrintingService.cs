@@ -11,6 +11,13 @@ public interface IPrintingService
     /// <param name="oracleId">The Oracle card identifier.</param>
     /// <returns>The printings associated with the Oracle card.</returns>
     Task<IReadOnlyList<CardPrinting>> GetPrintingsForCardAsync(Guid oracleId);
+    /// <summary>
+    /// Checks whether a Scryfall printing belongs to an Oracle card.
+    /// </summary>
+    /// <param name="oracleId">The Oracle card identifier.</param>
+    /// <param name="scryfallId">The Scryfall printing identifier.</param>
+    /// <returns>True when the printing belongs to the Oracle card.</returns>
+    Task<bool> IsPrintingForCardAsync(Guid oracleId, Guid scryfallId);
 }
 
 /// <summary>

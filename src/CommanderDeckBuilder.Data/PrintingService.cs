@@ -54,6 +54,27 @@ public sealed class PrintingService : IPrintingService
             .ToArray();
     }
 
+    /// <inheritdoc />
+    public async Task<bool> IsPrintingForCardAsync(Guid oracleId, Guid scryfallId)
+    {
+        await using var connection = new SqliteConnection(_paths.ConnectionString);
+        await connection.OpenAsync();
+        var count = await connection.ExecuteScalarAsync<int>(
+            """
+            SELECT COUNT(*)
+            FROM CardPrintings
+            WHERE OracleId = @OracleId
+              AND ScryfallId = @ScryfallId
+            """,
+            new
+            {
+                OracleId = oracleId.ToString("D"),
+                ScryfallId = scryfallId.ToString("D")
+            });
+
+        return count == 1;
+    }
+
     private static DateOnly? ParseReleasedAt(string? releasedAt)
     {
         if (string.IsNullOrWhiteSpace(releasedAt))
