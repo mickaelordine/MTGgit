@@ -88,6 +88,16 @@ launchSettings.json.user
 [Ii]mage[Cc]ache/
 [Cc]ache/
 
+# Keep source and test Data folders part of the repository.
+!src/CommanderDeckBuilder.Data/
+!src/CommanderDeckBuilder.Data/**
+src/CommanderDeckBuilder.Data/bin/
+src/CommanderDeckBuilder.Data/obj/
+!tests/CommanderDeckBuilder.Tests/Unit/Data/
+!tests/CommanderDeckBuilder.Tests/Unit/Data/**
+!tests/CommanderDeckBuilder.Tests/Integration/Data/
+!tests/CommanderDeckBuilder.Tests/Integration/Data/**
+
 # SQLite databases & write-ahead logs
 *.db
 *.db-shm

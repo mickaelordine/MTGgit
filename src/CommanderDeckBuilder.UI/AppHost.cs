@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using CommanderDeckBuilder.Core;
 using CommanderDeckBuilder.Data;
+using System.Net.Http;
 
 namespace CommanderDeckBuilder.UI;
 
@@ -17,6 +18,8 @@ public static class AppHost
         services.AddSingleton<OracleCardSearchRepository>();
         services.AddSingleton<ICardSearchService, CardSearchService>();
         services.AddSingleton<IPrintingService, PrintingService>();
+        services.AddSingleton<HttpClient>();
+        services.AddSingleton<IImageCacheService, ImageCacheService>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
         return services.BuildServiceProvider();
