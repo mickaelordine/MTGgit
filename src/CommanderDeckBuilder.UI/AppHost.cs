@@ -16,6 +16,7 @@ public static class AppHost
         services.AddSingleton<SqliteDatabaseInitializer>();
         services.AddSingleton<OracleCardSearchRepository>();
         services.AddSingleton<ICardSearchService, CardSearchService>();
+        services.AddSingleton<IPrintingService, PrintingService>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
         return services.BuildServiceProvider();
