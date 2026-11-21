@@ -7,6 +7,11 @@ public sealed class Deck
 {
     private readonly List<DeckCardEntry> _entries = [];
 
+    /// <summary>
+    /// Gets whether tag modifications make the deck's working state dirty.
+    /// </summary>
+    public bool IsDirty { get; private set; }
+
     private Deck(DeckCommander primaryCommander, DeckCommander? secondaryCommander)
     {
         PrimaryCommander = primaryCommander;
@@ -110,7 +115,10 @@ public sealed class Deck
         if (existingEntry is not null)
         {
             existingEntry.IncrementQuantity();
-            existingEntry.UpdateMetadata(cardName, cardTypeLine, tags);
+            if (existingEntry.UpdateMetadata(cardName, cardTypeLine, tags))
+            {
+                IsDirty = true;
+            }
             new DeckValidationService().Validate(this);
             return;
         }
@@ -191,7 +199,10 @@ public sealed class Deck
                     "A printing identifier cannot be reassigned to a different Oracle card.");
             }
 
-            target.MergeFrom(source);
+            if (target.MergeFrom(source))
+            {
+                IsDirty = true;
+            }
             _entries.Remove(source);
             new DeckValidationService().Validate(this);
             return;
@@ -206,7 +217,10 @@ public sealed class Deck
     /// </summary>
     public void AddTag(string selectedPrintingScryfallId, string tag)
     {
-        GetEntry(selectedPrintingScryfallId).AddTag(tag);
+        if (GetEntry(selectedPrintingScryfallId).AddTag(tag))
+        {
+            IsDirty = true;
+        }
     }
 
     /// <summary>
@@ -214,7 +228,18 @@ public sealed class Deck
     /// </summary>
     public void RemoveTag(string selectedPrintingScryfallId, string tag)
     {
-        GetEntry(selectedPrintingScryfallId).RemoveTag(tag);
+        if (GetEntry(selectedPrintingScryfallId).RemoveTag(tag))
+        {
+            IsDirty = true;
+        }
+    }
+
+    /// <summary>
+    /// Marks the current deck working state as clean after saving or committing.
+    /// </summary>
+    public void MarkAsClean()
+    {
+        IsDirty = false;
     }
 
     private DeckCardEntry GetEntry(string selectedPrintingScryfallId)

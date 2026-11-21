@@ -78,7 +78,7 @@ public sealed class DeckDomainTests
         Assert.Equal("printing-1", entry.SelectedPrintingScryfallId);
         Assert.Equal(2, entry.Quantity);
         Assert.Equal(DeckZone.Mainboard, entry.Zone);
-        Assert.Equal(["#Ramp", "#Tutor"], entry.Tags);
+        Assert.Equal(["#ramp", "#tutor"], entry.Tags);
         Assert.False(entry.HasColorIdentityViolation);
     }
 

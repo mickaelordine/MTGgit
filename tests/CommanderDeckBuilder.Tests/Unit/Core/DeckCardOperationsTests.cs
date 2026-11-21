@@ -93,7 +93,7 @@ public sealed class DeckCardOperationsTests
         Assert.Equal(destination, entry.Zone);
         Assert.Equal("printing-1", entry.SelectedPrintingScryfallId);
         Assert.Equal(1, entry.Quantity);
-        Assert.Equal(["#Ramp"], entry.Tags);
+        Assert.Equal(["#ramp"], entry.Tags);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class DeckCardOperationsTests
         Assert.Equal("printing-2", entry.SelectedPrintingScryfallId);
         Assert.Equal(DeckZone.Sideboard, entry.Zone);
         Assert.Equal(1, entry.Quantity);
-        Assert.Equal(["#Tutor"], entry.Tags);
+        Assert.Equal(["#tutor"], entry.Tags);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class DeckCardOperationsTests
         Assert.Equal("printing-2", entry.SelectedPrintingScryfallId);
         Assert.Equal(DeckZone.Sideboard, entry.Zone);
         Assert.Equal(2, entry.Quantity);
-        Assert.Equal(["#Ramp", "#Tutor"], entry.Tags);
+        Assert.Equal(["#ramp", "#tutor"], entry.Tags);
     }
 
     [Fact]
@@ -149,6 +149,240 @@ public sealed class DeckCardOperationsTests
         deck.RemoveTag("printing-1", "#Wincon");
 
         Assert.Empty(Assert.Single(deck.Entries).Tags);
+    }
+
+    [Fact]
+    public void ConstructorNormalizesSortsAndDeduplicatesTags()
+    {
+        var entry = new DeckCardEntry(
+            "Card",
+            "printing-1",
+            1,
+            DeckZone.Mainboard,
+            ["  #  Wincon  ", "#Ramp", "#wincon", "#!Ramp"]);
+
+        Assert.Equal(["#!ramp", "#wincon"], entry.Tags);
+    }
+
+    [Fact]
+    public void AddTagNormalizesWhitespaceCaseAndPrefix()
+    {
+        var entry = new DeckCardEntry(
+            "Card",
+            "printing-1",
+            1,
+            DeckZone.Mainboard);
+
+        entry.AddTag("  #!  Draw  ");
+
+        Assert.Equal(["#!draw"], entry.Tags);
+    }
+
+    [Fact]
+    public void AddTagTreatsEquivalentCaseAndWhitespaceAsDuplicate()
+    {
+        var entry = new DeckCardEntry(
+            "Card",
+            "printing-1",
+            1,
+            DeckZone.Mainboard,
+            ["#Ramp"]);
+
+        Assert.False(entry.AddTag("  #  RAMP  "));
+        Assert.Equal(["#ramp"], entry.Tags);
+    }
+
+    [Fact]
+    public void AddTagFromLocalToGlobalUpgrade()
+    {
+        var entry = new DeckCardEntry(
+            "Card",
+            "printing-1",
+            1,
+            DeckZone.Mainboard,
+            ["#Ramp"]);
+
+        Assert.True(entry.AddTag("  #!  RAMP  "));
+        Assert.Equal(["#!ramp"], entry.Tags);
+    }
+
+    [Fact]
+    public void AddingGlobalTagUpgradesExistingLocalTag()
+    {
+        var entry = new DeckCardEntry(
+            "Card",
+            "printing-1",
+            1,
+            DeckZone.Mainboard);
+
+        entry.AddTag("#Ramp");
+        entry.AddTag("#!Ramp");
+
+        Assert.Equal(["#!ramp"], entry.Tags);
+    }
+
+    [Fact]
+    public void RemoveTagNormalizesInputAndRemovesExistingTag()
+    {
+        var entry = new DeckCardEntry(
+            "Card",
+            "printing-1",
+            1,
+            DeckZone.Mainboard,
+            ["#Ramp"]);
+
+        Assert.True(entry.RemoveTag("  #  RAMP  "));
+        Assert.Empty(entry.Tags);
+    }
+
+    [Fact]
+    public void RemoveTagIsNoOpWhenTagIsMissing()
+    {
+        var entry = new DeckCardEntry(
+            "Card",
+            "printing-1",
+            1,
+            DeckZone.Mainboard,
+            ["#Ramp"]);
+
+        Assert.False(entry.RemoveTag("#Draw"));
+        Assert.Equal(["#ramp"], entry.Tags);
+    }
+
+    [Fact]
+    public void NewDeckIsClean()
+    {
+        var deck = CreateDeck();
+
+        Assert.False(deck.IsDirty);
+    }
+
+    [Fact]
+    public void AddingNewTagMarksDeckDirty()
+    {
+        var deck = CreateDeck();
+        deck.AddCard("Card", "printing-1", DeckZone.Mainboard);
+
+        deck.AddTag("printing-1", "#Ramp");
+
+        Assert.True(deck.IsDirty);
+    }
+
+    [Fact]
+    public void DuplicateTagAndMissingTagDoNotChangeDirtyState()
+    {
+        var deck = CreateDeck();
+        deck.AddCard("Card", "printing-1", DeckZone.Mainboard, ["#Ramp"]);
+
+        deck.AddTag("printing-1", "#RAMP");
+        deck.RemoveTag("printing-1", "#Draw");
+
+        Assert.False(deck.IsDirty);
+    }
+
+    [Fact]
+    public void RemovingExistingTagMarksDeckDirty()
+    {
+        var deck = CreateDeck();
+        deck.AddCard("Card", "printing-1", DeckZone.Mainboard, ["#Ramp"]);
+
+        deck.RemoveTag("printing-1", "#Ramp");
+
+        Assert.True(deck.IsDirty);
+    }
+
+    [Fact]
+    public void MarkAsCleanClearsDirtyState()
+    {
+        var deck = CreateDeck();
+        deck.AddCard("Card", "printing-1", DeckZone.Mainboard);
+        deck.AddTag("printing-1", "#Ramp");
+
+        deck.MarkAsClean();
+
+        Assert.False(deck.IsDirty);
+    }
+
+    [Fact]
+    public void MergeFromKeepsTagsNormalizedAndSorted()
+    {
+        var target = new DeckCardEntry(
+            "Card",
+            "printing-target",
+            1,
+            DeckZone.Mainboard,
+            ["#Draw"]);
+        var source = new DeckCardEntry(
+            "Card",
+            "printing-source",
+            1,
+            DeckZone.Sideboard,
+            ["#  Wincon"]);
+
+        target.MergeFrom(source);
+
+        Assert.Equal(["#draw", "#wincon"], target.Tags);
+    }
+
+    [Fact]
+    public void AddingGlobalTagUpgradesMatchingLocalTag()
+    {
+        var entry = new DeckCardEntry(
+            "Card",
+            "printing-1",
+            1,
+            DeckZone.Mainboard,
+            ["#Ramp"]);
+
+        Assert.True(entry.AddTag("#!Ramp"));
+        Assert.Equal(["#!ramp"], entry.Tags);
+    }
+
+    [Fact]
+    public void ReaddingPrintingWithNewTagMarksDeckDirty()
+    {
+        var deck = CreateDeck();
+        deck.AddCard("Card", "printing-1", DeckZone.Mainboard);
+        deck.MarkAsClean();
+
+        deck.AddCard(
+            "Card",
+            "printing-1",
+            DeckZone.Sideboard,
+            ["#Ramp"]);
+
+        Assert.True(deck.IsDirty);
+        Assert.Equal(["#ramp"], Assert.Single(deck.Entries).Tags);
+    }
+
+    [Fact]
+    public void PrintingMergeWithNewTagMarksDeckDirty()
+    {
+        var deck = CreateDeck();
+        deck.AddCard("Card", "printing-1", DeckZone.Mainboard);
+        deck.AddCard("Card", "printing-2", DeckZone.Sideboard, ["#Wincon"]);
+        deck.MarkAsClean();
+
+        deck.ChangePrinting("printing-2", "printing-1");
+
+        Assert.True(deck.IsDirty);
+        Assert.Equal(["#wincon"], Assert.Single(deck.Entries).Tags);
+    }
+
+    [Fact]
+    public void TagChangesPreserveCardIdentityZoneQuantityAndPrinting()
+    {
+        var deck = CreateDeck();
+        deck.AddCard("Card", "printing-1", DeckZone.Sideboard);
+
+        deck.AddTag("printing-1", "#Ramp");
+        deck.RemoveTag("printing-1", "#Ramp");
+        var entry = Assert.Single(deck.Entries);
+
+        Assert.Equal("Card", entry.OracleId);
+        Assert.Equal("printing-1", entry.SelectedPrintingScryfallId);
+        Assert.Equal(DeckZone.Sideboard, entry.Zone);
+        Assert.Equal(1, entry.Quantity);
     }
 
     [Fact]

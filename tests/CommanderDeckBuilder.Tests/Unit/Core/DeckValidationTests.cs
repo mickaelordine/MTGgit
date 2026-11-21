@@ -237,7 +237,7 @@ public sealed class DeckValidationTests
         var entry = Assert.Single(deck.Entries);
         Assert.Equal("Sol Ring", entry.CardName);
         Assert.Equal("Artifact", entry.CardTypeLine);
-        Assert.Equal(["#Ramp"], entry.Tags);
+        Assert.Equal(["#ramp"], entry.Tags);
         Assert.Equal(2, entry.Quantity);
     }
 
