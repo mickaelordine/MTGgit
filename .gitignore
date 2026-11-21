@@ -129,6 +129,7 @@ scryfall-bulk*.json
 .agent-cache/
 .mcp/
 .exact-coding/
+AGENTS.md
 
 # Agent directories (.agents/)
 # Ignora tutto il contenuto temporaneo/stato di .agents/, ma MANTIENI le skill
