@@ -120,7 +120,7 @@ public sealed class DeckCopyLimitScryfallIntegrationTests
             ImageUriArtCrop = card.ImageUris?.ArtCrop
         };
 
-        return ScryfallCardMapper.Map(document);
+        return ScryfallCardMapper.Map(document, new HashSet<string>());
     }
 
     private sealed class NamedCard

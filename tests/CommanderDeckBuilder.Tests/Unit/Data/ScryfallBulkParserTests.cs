@@ -90,7 +90,7 @@ public sealed class Slice3ScryfallBulkParserTests
         }
 
         Assert.NotNull(source);
-        var mapped = ScryfallCardMapper.Map(source);
+        var mapped = ScryfallCardMapper.Map(source, new HashSet<string>());
 
         Assert.Equal("G,U", mapped.OracleCard.ColorIdentity);
         Assert.Equal("https://example.test/back.png", mapped.CardPrinting.BackImageUriNormal);

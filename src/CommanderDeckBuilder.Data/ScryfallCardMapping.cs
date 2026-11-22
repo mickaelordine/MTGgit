@@ -98,11 +98,18 @@ public static class ScryfallCardMapper
     /// \return The oracle id, or an empty string when none exists.
     private static string ResolveOracleId(ScryfallCardDocument source)
     {
-        return !string.IsNullOrEmpty(source.OracleId)
+        return !HasFaceIdentity(source)
             ? source.OracleId
             : source.Faces.Select(face => face.OracleId).FirstOrDefault(id => !string.IsNullOrEmpty(id))
                 ?? string.Empty;
     }
+
+    /// \brief Tells whether the card's oracle identity lives on its faces (reversible cards
+    /// have no top-level oracle id).
+    /// \param source The Scryfall card document.
+    /// \return True when the top-level oracle id is missing.
+    private static bool HasFaceIdentity(ScryfallCardDocument source) =>
+        string.IsNullOrEmpty(source.OracleId);
 
     /// \brief Joins the rules text of a multi-faced card's faces in face order.
     /// \param faces The card faces.
@@ -118,18 +125,23 @@ public static class ScryfallCardMapper
 
     /// \brief Maps one source card and its faces into oracle and printing records.
     /// \param source The Scryfall card document to map.
+    /// \param commanderOracleIds The oracle ids Scryfall accepts as commanders (`is:commander`);
+    /// a card is a possible commander only when its oracle id is in this set.
     /// \return The normalized oracle card and printing records.
-    public static MappedScryfallCard Map(ScryfallCardDocument source)
+    public static MappedScryfallCard Map(
+        ScryfallCardDocument source,
+        IReadOnlySet<string> commanderOracleIds)
     {
+        ArgumentNullException.ThrowIfNull(commanderOracleIds);
+
         var frontFace = source.Faces.FirstOrDefault();
         var backFace = source.Faces.Skip(1).FirstOrDefault();
         var oracleId = ResolveOracleId(source);
-        // Reversible cards carry their oracle identity on the faces; both faces are the same card,
-        // so the face name is the card name (the top-level name is "X // X").
-        var name = (string.IsNullOrEmpty(source.OracleId) && frontFace is not null
+        // Both faces of a reversible card are the same card, so the face name is the card name
+        // (the top-level name is "X // X").
+        var name = (HasFaceIdentity(source) && frontFace is not null
             ? frontFace.Name
             : source.Name).Trim();
-        var oracleText = source.OracleText ?? string.Empty;
         var normalizedColorIdentity = string.Join(
             ',',
             source.ColorIdentity
@@ -148,8 +160,7 @@ public static class ScryfallCardMapper
             source.TypeLine,
             source.OracleText ?? JoinFaceOracleText(source.Faces),
             normalizedColorIdentity,
-            source.TypeLine.Contains("Legendary Creature", StringComparison.OrdinalIgnoreCase)
-                || oracleText.Contains("can be your commander", StringComparison.OrdinalIgnoreCase),
+            commanderOracleIds.Contains(oracleId),
             source.CommanderLegality);
 
         var printing = new CardPrintingRecord(

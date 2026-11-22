@@ -17,6 +17,7 @@ public sealed class ScryfallSyncService
     private readonly ScryfallBulkMetadataClient _metadataClient;
     private readonly HttpClient _httpClient;
     private readonly ScryfallBulkImporter _importer;
+    private readonly ScryfallCommanderListClient _commanderListClient;
 
     /// \brief Initializes the synchronization service.
     /// \param paths The local storage paths containing the database.
@@ -31,13 +32,16 @@ public sealed class ScryfallSyncService
         _metadataClient = metadataClient;
         _httpClient = httpClient;
         _importer = new ScryfallBulkImporter(paths);
+        _commanderListClient = new ScryfallCommanderListClient(httpClient);
     }
 
     /// \brief Synchronizes the local default-cards dataset when it is stale.
     /// \param progress Receives card and content-length progress updates, if supplied.
     /// \param cancellationToken Cancels metadata lookup, download, parsing, or import.
     /// \return A result indicating whether a download and import occurred.
-    /// \exception HttpRequestException Thrown when the download response is unsuccessful.
+    /// \exception HttpRequestException Thrown when the commander list or the download response is unsuccessful;
+    /// the catalog is left untouched (the commander list is read before anything is downloaded or written).
+    /// \exception InvalidDataException Thrown when a commander-list page cannot be parsed.
     public async Task<SyncResult> SynchronizeAsync(
         IProgress<SyncProgress>? progress = null,
         CancellationToken cancellationToken = default)
@@ -49,6 +53,7 @@ public sealed class ScryfallSyncService
             return new SyncResult(Downloaded: false);
         }
 
+        var commanderOracleIds = await _commanderListClient.GetCommanderOracleIdsAsync(cancellationToken);
         using var response = await _httpClient.GetAsync(
             remote.DownloadUri,
             HttpCompletionOption.ResponseHeadersRead,
@@ -61,6 +66,7 @@ public sealed class ScryfallSyncService
                 ReadCardsAsync(stream, remote.DownloadUri, cancellationToken),
                 progress,
                 totalBytes,
+                commanderOracleIds,
                 cancellationToken),
             remote.UpdatedAt,
             cancellationToken);
@@ -128,12 +134,14 @@ public sealed class ScryfallSyncService
     /// \param cards The asynchronous source-card sequence.
     /// \param progress The optional progress receiver.
     /// \param totalBytes The HTTP content length, when known.
+    /// \param commanderOracleIds The oracle ids Scryfall accepts as commanders (`is:commander`).
     /// \param cancellationToken Cancels enumeration.
     /// \return An asynchronous sequence of mapped cards.
     private static async IAsyncEnumerable<MappedScryfallCard> TrackProgress(
         IAsyncEnumerable<ScryfallCardDocument> cards,
         IProgress<SyncProgress>? progress,
         long? totalBytes,
+        IReadOnlySet<string> commanderOracleIds,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var count = 0L;
@@ -143,7 +151,7 @@ public sealed class ScryfallSyncService
             progress?.Report(new SyncProgress(count, totalBytes));
             if (ScryfallCardMapper.IsDeckCard(card))
             {
-                yield return ScryfallCardMapper.Map(card);
+                yield return ScryfallCardMapper.Map(card, commanderOracleIds);
             }
         }
     }

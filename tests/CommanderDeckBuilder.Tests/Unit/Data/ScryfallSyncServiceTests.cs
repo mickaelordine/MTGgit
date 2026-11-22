@@ -113,6 +113,75 @@ public sealed class Slice5ScryfallSyncServiceTests
         Assert.Equal("Lightning Bolt", connection.ExecuteScalar<string>("SELECT Name FROM OracleCards"));
     }
 
+    [Fact]
+    public async Task Sync_marks_possible_commanders_from_the_scryfall_list()
+    {
+        using var fixture = new StorageFixture();
+        fixture.Initializer.Initialize();
+        using var httpClient = new HttpClient(new BulkStubHandler(
+            CommanderCandidatesJson,
+            commanderOracleIds: ["oracle-background-commander"]));
+        var metadataClient = new ScryfallBulkMetadataClient(httpClient);
+        var service = new ScryfallSyncService(fixture.Paths, metadataClient, httpClient);
+
+        await service.SynchronizeAsync();
+
+        using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
+        connection.Open();
+        Assert.Equal(0, connection.ExecuteScalar<int>(
+            "SELECT IsPossibleCommander FROM OracleCards WHERE OracleId = 'oracle-not-listed'"));
+        Assert.Equal(1, connection.ExecuteScalar<int>(
+            "SELECT IsPossibleCommander FROM OracleCards WHERE OracleId = 'oracle-background-commander'"));
+    }
+
+    [Fact]
+    public async Task Sync_fails_without_downloading_when_the_commander_list_cannot_be_fetched()
+    {
+        using var fixture = new StorageFixture();
+        fixture.Initializer.Initialize();
+        var handler = new BulkStubHandler(CommanderCandidatesJson, failCommanderSearch: true);
+        using var httpClient = new HttpClient(handler);
+        var metadataClient = new ScryfallBulkMetadataClient(httpClient);
+        var service = new ScryfallSyncService(fixture.Paths, metadataClient, httpClient);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => service.SynchronizeAsync());
+
+        Assert.Equal(0, handler.DownloadRequests);
+        using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
+        connection.Open();
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM OracleCards"));
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM SyncMetadata"));
+    }
+
+    private const string CommanderCandidatesJson = """
+        [
+          {
+            "oracle_id": "oracle-not-listed",
+            "name": "Listed Nowhere",
+            "layout": "normal",
+            "type_line": "Legendary Creature — Human",
+            "color_identity": ["W"],
+            "id": "card-not-listed",
+            "set": "abc",
+            "set_name": "Example Set",
+            "collector_number": "1",
+            "rarity": "rare"
+          },
+          {
+            "oracle_id": "oracle-background-commander",
+            "name": "Listed Enchantment",
+            "layout": "normal",
+            "type_line": "Enchantment",
+            "color_identity": ["G"],
+            "id": "card-listed",
+            "set": "abc",
+            "set_name": "Example Set",
+            "collector_number": "2",
+            "rarity": "rare"
+          }
+        ]
+        """;
+
     private sealed class SynchronousProgress(Action<SyncProgress> report) : IProgress<SyncProgress>
     {
         public void Report(SyncProgress value) => report(value);
@@ -137,10 +206,17 @@ public sealed class Slice5ScryfallSyncServiceTests
             """;
 
         private readonly string _cardsJson;
+        private readonly string[] _commanderOracleIds;
+        private readonly bool _failCommanderSearch;
 
-        public BulkStubHandler(string cardsJson = DefaultCardsJson)
+        public BulkStubHandler(
+            string cardsJson = DefaultCardsJson,
+            string[]? commanderOracleIds = null,
+            bool failCommanderSearch = false)
         {
             _cardsJson = cardsJson;
+            _commanderOracleIds = commanderOracleIds ?? [];
+            _failCommanderSearch = failCommanderSearch;
         }
 
         public int DownloadRequests { get; private set; }
@@ -149,6 +225,17 @@ public sealed class Slice5ScryfallSyncServiceTests
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
+            if (request.RequestUri?.AbsolutePath == "/cards/search")
+            {
+                if (_failCommanderSearch)
+                {
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+                }
+
+                var data = string.Join(",", _commanderOracleIds.Select(id => $$"""{ "oracle_id": "{{id}}" }"""));
+                return Task.FromResult(JsonResponse($$"""{ "has_more": false, "data": [ {{data}} ] }"""));
+            }
+
             if (request.RequestUri?.AbsolutePath == "/bulk-data/default-cards")
             {
                 return Task.FromResult(JsonResponse("""

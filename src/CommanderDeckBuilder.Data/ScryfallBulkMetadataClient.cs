@@ -17,10 +17,7 @@ public sealed class ScryfallBulkMetadataClient
     public ScryfallBulkMetadataClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        if (_httpClient.DefaultRequestHeaders.UserAgent.Count == 0)
-        {
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("MTGgit/1.0");
-        }
+        ScryfallHttp.EnsureUserAgent(_httpClient);
     }
 
     /// \brief Retrieves and validates the default-cards dataset metadata.

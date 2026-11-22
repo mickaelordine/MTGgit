@@ -25,7 +25,7 @@ public sealed class Slice4ScryfallBulkImporterTests
             SetName = "Example Set",
             CollectorNumber = "1",
             Rarity = "common"
-        });
+        }, new HashSet<string>());
 
         await importer.ImportAsync(
             One(mapped),
@@ -55,7 +55,7 @@ public sealed class Slice4ScryfallBulkImporterTests
             SetName = "Example Set",
             CollectorNumber = "1",
             Rarity = "common"
-        });
+        }, new HashSet<string>());
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => importer.ImportAsync(
@@ -85,7 +85,8 @@ public sealed class Slice4ScryfallBulkImporterTests
             SetName = "Example Set",
             CollectorNumber = "1",
             Rarity = "common"
-        });
+        }, new HashSet<string>());
+        
         var firstTimestamp = DateTimeOffset.Parse("2024-01-02T03:04:05Z");
         var secondTimestamp = DateTimeOffset.Parse("2024-01-03T03:04:05Z");
 
