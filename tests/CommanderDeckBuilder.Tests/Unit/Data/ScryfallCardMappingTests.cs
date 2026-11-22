@@ -180,6 +180,24 @@ public sealed class Slice1ScryfallCardMappingTests
     }
 
     [Fact]
+    public void Stores_a_diacritic_free_search_key_and_keeps_the_name()
+    {
+        var source = new ScryfallCardDocument
+        {
+            OracleId = "oracle-nazgul",
+            Name = "Nazgûl",
+            Layout = "normal",
+            TypeLine = "Creature — Wraith Knight",
+            ScryfallId = "card-nazgul"
+        };
+
+        var mapped = ScryfallCardMapper.Map(source);
+
+        Assert.Equal("Nazgûl", mapped.OracleCard.Name);
+        Assert.Equal("nazgul", mapped.OracleCard.NormalizedName);
+    }
+
+    [Fact]
     public void Multi_faced_card_joins_face_oracle_text()
     {
         var source = new ScryfallCardDocument

@@ -1,3 +1,5 @@
+using CommanderDeckBuilder.Core;
+
 namespace CommanderDeckBuilder.Data;
 
 /// \brief Contains the card and printing fields read from Scryfall.
@@ -147,7 +149,7 @@ public static class ScryfallCardMapper
         var oracleCard = new OracleCardRecord(
             oracleId,
             name,
-            name.ToLowerInvariant(),
+            CardNameNormalizer.ToSearchKey(name),
             source.ManaCost,
             source.Cmc,
             source.TypeLine,

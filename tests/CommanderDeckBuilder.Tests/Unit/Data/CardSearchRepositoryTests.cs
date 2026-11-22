@@ -23,6 +23,21 @@ public sealed class CardSearchRepositoryTests
         Assert.Equal("Sol Ring", result.Name);
     }
 
+    [Theory]
+    [InlineData("Nazgul")]
+    [InlineData("NAZGÛL")]
+    public async Task Search_ignores_diacritics_and_keeps_the_canonical_name(string query)
+    {
+        using var fixture = new SearchStorageFixture();
+        fixture.Initialize();
+        fixture.InsertCard("oracle-nazgul", "Nazgûl", CardNameNormalizer.ToSearchKey("Nazgûl"), "B", false);
+        var repository = new OracleCardSearchRepository(fixture.Paths);
+
+        var results = await repository.SearchAsync(query, ColorIdentity.Parse("W,U,B,R,G"));
+
+        Assert.Equal("Nazgûl", Assert.Single(results).Name);
+    }
+
     [Fact]
     public async Task Query_excludes_non_matching_names()
     {

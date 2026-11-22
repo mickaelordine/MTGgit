@@ -19,6 +19,20 @@ public sealed class CardSearchRankingTests
     }
 
     [Fact]
+    public void Exact_match_ignores_diacritics()
+    {
+        var candidates = new[]
+        {
+            Candidate("oracle-warlord", "Nazgul Warlord", "nazgul warlord"),
+            Candidate("oracle-nazgul", "Nazgûl", string.Empty)
+        };
+
+        var ranked = CardSearchRanking.Rank(candidates, "Nazgul");
+
+        Assert.Equal("oracle-nazgul", ranked[0].OracleId);
+    }
+
+    [Fact]
     public void Prefix_match_ranks_before_substring_match()
     {
         var candidates = new[]

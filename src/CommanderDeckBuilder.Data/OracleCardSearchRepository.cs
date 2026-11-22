@@ -36,7 +36,7 @@ public sealed class OracleCardSearchRepository
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var normalizedQuery = query.Trim().ToLowerInvariant();
+        var normalizedQuery = CardNameNormalizer.ToSearchKey(query);
         if (normalizedQuery.Length == 0)
         {
             return [];

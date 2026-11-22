@@ -18,7 +18,7 @@ public static class CardSearchRanking
         ArgumentNullException.ThrowIfNull(candidates);
         ArgumentNullException.ThrowIfNull(query);
 
-        var normalizedQuery = query.Trim().ToLowerInvariant();
+        var normalizedQuery = CardNameNormalizer.ToSearchKey(query);
         return candidates
             .Select(candidate => new RankedCandidate(
                 candidate,
@@ -68,12 +68,11 @@ public static class CardSearchRanking
     /// Gets the normalized name, deriving it when a caller omitted the field.
     /// </summary>
     /// <param name="candidate">The candidate to normalize.</param>
-    /// <returns>The invariant lower-case card name.</returns>
+    /// <returns>The case- and diacritic-insensitive search key of the card name.</returns>
     private static string GetNormalizedName(CardSearchCandidate candidate)
     {
-        return string.IsNullOrEmpty(candidate.NormalizedName)
-            ? candidate.Name.Trim().ToLowerInvariant()
-            : candidate.NormalizedName.Trim().ToLowerInvariant();
+        return CardNameNormalizer.ToSearchKey(
+            string.IsNullOrEmpty(candidate.NormalizedName) ? candidate.Name : candidate.NormalizedName);
     }
 
     /// <summary>
