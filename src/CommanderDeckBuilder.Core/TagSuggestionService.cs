@@ -12,7 +12,7 @@ public sealed class TagSuggestionService : ITagSuggestionService
         string? query)
     {
         ArgumentNullException.ThrowIfNull(currentDeck);
-        var normalizedQuery = TagText.Normalize(query);
+        var normalizedQuery = Tag.Normalize(query);
         if (normalizedQuery.Length == 0)
         {
             return Array.Empty<string>();
@@ -23,8 +23,7 @@ public sealed class TagSuggestionService : ITagSuggestionService
         {
             foreach (var tag in entry.Tags)
             {
-                if (tag.StartsWith("#", StringComparison.Ordinal)
-                    && !tag.StartsWith("#!", StringComparison.Ordinal))
+                if (Tag.Parse(tag).Scope == TagScope.Local)
                 {
                     suggestions.Add(tag);
                 }
@@ -38,7 +37,7 @@ public sealed class TagSuggestionService : ITagSuggestionService
             {
                 foreach (var tag in entry.Tags)
                 {
-                    if (tag.StartsWith("#!", StringComparison.Ordinal))
+                    if (Tag.Parse(tag).Scope == TagScope.Global)
                     {
                         suggestions.Add(tag);
                     }

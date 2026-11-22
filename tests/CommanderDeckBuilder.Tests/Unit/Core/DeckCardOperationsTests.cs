@@ -281,6 +281,18 @@ public sealed class DeckCardOperationsTests
     }
 
     [Fact]
+    public void AddingExistingGlobalTagIsNoOpAndKeepsTag()
+    {
+        var deck = CreateDeck();
+        deck.AddCard("Card", "printing-1", DeckZone.Mainboard, ["#!Ramp"]);
+
+        deck.AddTag("printing-1", "#!RAMP");
+
+        Assert.Equal(["#!ramp"], Assert.Single(deck.Entries).Tags);
+        Assert.False(deck.IsDirty);
+    }
+
+    [Fact]
     public void RemovingExistingTagMarksDeckDirty()
     {
         var deck = CreateDeck();

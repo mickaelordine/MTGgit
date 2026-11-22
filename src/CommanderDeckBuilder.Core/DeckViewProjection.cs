@@ -56,7 +56,7 @@ public sealed class DeckViewProjection
     {
         ArgumentNullException.ThrowIfNull(deck);
 
-        var normalizedTag = TagText.Normalize(tag);
+        var normalizedTag = Tag.Normalize(tag);
         if (normalizedTag.Length == 0)
         {
             return Array.Empty<DeckCardEntry>();

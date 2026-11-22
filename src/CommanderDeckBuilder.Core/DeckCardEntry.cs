@@ -170,44 +170,20 @@ public sealed class DeckCardEntry
     /// </summary>
     public bool AddTag(string tag)
     {
-        var normalizedTag = NormalizeTag(tag);
-        var separatorIndex = normalizedTag.IndexOf('#');
-        var tagName = normalizedTag[(separatorIndex + 1)..];
-
-        if (normalizedTag.StartsWith("#!", StringComparison.Ordinal))
-        {
-            var localTag = "#" + tagName;
-            var localRemoved = Tags.Contains(localTag, StringComparer.Ordinal);
-            var globalExists = Tags.Contains(normalizedTag, StringComparer.Ordinal);
-
-            Tags = Tags.Where(existingTag => !existingTag.Equals(localTag, StringComparison.Ordinal))
-                .ToArray();
-
-            if (!globalExists)
-            {
-                Tags = Tags.Append(normalizedTag).ToArray();
-            }
-
-            Tags = NormalizeTags(Tags);
-            return localRemoved || !globalExists;
-        }
-
-        var globalTag = "#!" + tagName;
-        if (Tags.Contains(globalTag, StringComparer.Ordinal))
+        var added = Tag.Parse(tag);
+        var current = Tags.Select(Tag.Parse).ToArray();
+        if (current.Any(existing => existing == added || existing.Shadows(added)))
         {
             return false;
         }
 
-        if (!Tags.Contains(normalizedTag, StringComparer.Ordinal))
-        {
-            Tags = Tags.Append(normalizedTag)
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(existingTag => existingTag, StringComparer.Ordinal)
-                .ToArray();
-            return true;
-        }
-
-        return false;
+        Tags = current
+            .Where(existing => !added.Shadows(existing))
+            .Append(added)
+            .Select(existing => existing.Value)
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
+        return true;
     }
 
     /// <summary>
@@ -215,7 +191,7 @@ public sealed class DeckCardEntry
     /// </summary>
     public bool RemoveTag(string tag)
     {
-        var normalizedTag = NormalizeTag(tag);
+        var normalizedTag = Tag.Parse(tag).Value;
         var originalCount = Tags.Count;
         Tags = Tags.Where(existingTag => !existingTag.Equals(normalizedTag, StringComparison.Ordinal))
             .OrderBy(existingTag => existingTag, StringComparer.Ordinal)
@@ -225,23 +201,11 @@ public sealed class DeckCardEntry
 
     private static IReadOnlyCollection<string> NormalizeTags(IEnumerable<string>? tags)
     {
-        var normalizedTags = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var tag in tags ?? [])
-        {
-            normalizedTags.Add(NormalizeTag(tag));
-        }
-
-        foreach (var globalTag in normalizedTags
-            .Where(tag => tag.StartsWith("#!", StringComparison.Ordinal))
-            .ToArray())
-        {
-            normalizedTags.Remove("#" + globalTag[2..]);
-        }
-
-        return normalizedTags
-            .OrderBy(tag => tag, StringComparer.Ordinal)
+        var parsed = (tags ?? []).Select(Tag.Parse).Distinct().ToArray();
+        return parsed
+            .Where(tag => !parsed.Any(other => other.Shadows(tag)))
+            .Select(tag => tag.Value)
+            .OrderBy(value => value, StringComparer.Ordinal)
             .ToArray();
     }
-
-    private static string NormalizeTag(string tag) => Tag.Parse(tag).Value;
 }

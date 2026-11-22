@@ -4,21 +4,6 @@ namespace CommanderDeckBuilder.Tests;
 
 public sealed class TagTests
 {
-    // Test List — Slice 1 (refactor: Tag value module). Inactive tests are activated one at a time.
-    //
-    // Suite A — Tag parse / scope / normalization
-    //   [x] ParsesLocalTagWithLowercaseName
-    //   [x] ParsesGlobalTagWithCanonicalValue
-    //   [x] RemovesWhitespaceAndLowercasesName
-    //   [x] RejectsTagWithoutPrefix
-    //   [x] RejectsBlankTag (split from RejectsTagWithoutPrefix at suite-close review)
-    //   [x] RejectsTagWithoutName
-    //   verification:
-    //   [x] TagsWithSameCanonicalValueAreEqual
-    //
-    // Suite B — Tag shadow relationship
-    //   [x] GlobalTagShadowsItsLocalTwin
-    //   [x] TagDoesNotShadowOtherScopeOrOtherName
 
     [Fact]
     public void ParsesLocalTagWithLowercaseName()
@@ -92,7 +77,7 @@ public sealed class TagTests
     [InlineData("#!ramp", "#draw")]
     [InlineData("#!ramp", "#!ramp")]
     [InlineData("#ramp", "#ramp")]
-    public void TagDoesNotShadowOtherScopeOrOtherName(string tag, string other)
+    public void TagShadowsOnlyItsLocalTwinFromGlobalScope(string tag, string other)
     {
         Assert.False(Tag.Parse(tag).Shadows(Tag.Parse(other)));
     }
