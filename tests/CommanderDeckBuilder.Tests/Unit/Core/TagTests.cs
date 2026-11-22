@@ -77,7 +77,7 @@ public sealed class TagTests
     [InlineData("#!ramp", "#draw")]
     [InlineData("#!ramp", "#!ramp")]
     [InlineData("#ramp", "#ramp")]
-    public void TagShadowsOnlyItsLocalTwinFromGlobalScope(string tag, string other)
+    public void TagDoesNotShadowAnythingButItsLocalTwin(string tag, string other)
     {
         Assert.False(Tag.Parse(tag).Shadows(Tag.Parse(other)));
     }

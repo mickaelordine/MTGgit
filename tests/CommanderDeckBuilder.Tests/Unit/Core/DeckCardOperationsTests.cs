@@ -293,6 +293,19 @@ public sealed class DeckCardOperationsTests
     }
 
     [Fact]
+    public void AddingLocalTagWhileGlobalTwinPresentIsNoOp()
+    {
+        var deck = CreateDeck();
+        deck.AddCard("Card", "printing-1", DeckZone.Mainboard, ["#!Ramp"]);
+        deck.MarkAsClean();
+
+        deck.AddTag("printing-1", "#Ramp");
+
+        Assert.Equal(["#!ramp"], Assert.Single(deck.Entries).Tags);
+        Assert.False(deck.IsDirty);
+    }
+
+    [Fact]
     public void RemovingExistingTagMarksDeckDirty()
     {
         var deck = CreateDeck();

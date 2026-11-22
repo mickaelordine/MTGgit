@@ -166,24 +166,16 @@ public sealed class DeckCardEntry
     }
 
     /// <summary>
-    /// Adds a custom tag if it is not already present.
+    /// Adds a custom tag to the entry's canonical tag set.
+    /// A global tag replaces its local twin; a local tag is ignored while its global twin is present.
     /// </summary>
+    /// <param name="tag">The raw tag text, starting with <c>#</c> or <c>#!</c>.</param>
+    /// <returns><c>true</c> only when the tag set actually changed.</returns>
     public bool AddTag(string tag)
     {
-        var added = Tag.Parse(tag);
-        var current = Tags.Select(Tag.Parse).ToArray();
-        if (current.Any(existing => existing == added || existing.Shadows(added)))
-        {
-            return false;
-        }
-
-        Tags = current
-            .Where(existing => !added.Shadows(existing))
-            .Append(added)
-            .Select(existing => existing.Value)
-            .OrderBy(value => value, StringComparer.Ordinal)
-            .ToArray();
-        return true;
+        var tagsBefore = Tags;
+        Tags = NormalizeTags(Tags.Append(tag));
+        return !tagsBefore.SequenceEqual(Tags, StringComparer.Ordinal);
     }
 
     /// <summary>
