@@ -254,7 +254,7 @@ public sealed class Deck
     {
         foreach (var result in Validation.Evaluate(this))
         {
-            result.Entry.ApplyValidation(result);
+            result.Entry.ApplyValidation(result.HasColorIdentityViolation, result.HasCopyLimitViolation);
         }
     }
 

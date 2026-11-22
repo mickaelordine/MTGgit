@@ -1,7 +1,7 @@
 namespace CommanderDeckBuilder.Core;
 
 /// <summary>
-/// Evaluates Commander color-identity, copy-limit and deck-size rules for a deck without changing it.
+/// Evaluates the Commander color-identity and copy-limit rules for every deck entry without changing the deck.
 /// </summary>
 public sealed class DeckValidationService
 {
@@ -73,14 +73,6 @@ public sealed class DeckValidationService
         return !UnlimitedCopyCards.Contains(entry.CardName);
     }
 
-    /// <summary>
-    /// Determines whether Commander and Mainboard contain exactly 100 cards.
-    /// </summary>
-    public bool IsDeckSizeValid(Deck deck)
-    {
-        ArgumentNullException.ThrowIfNull(deck);
-        return Deck.IsDeckSizeValid(deck.Entries);
-    }
 }
 
 /// <summary>

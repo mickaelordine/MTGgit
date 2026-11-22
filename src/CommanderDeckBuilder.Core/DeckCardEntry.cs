@@ -78,10 +78,10 @@ public sealed class DeckCardEntry
     public bool HasDeckValidationViolation =>
         HasColorIdentityViolation || HasCopyLimitViolation;
 
-    internal void ApplyValidation(EntryValidation validation)
+    internal void ApplyValidation(bool hasColorIdentityViolation, bool hasCopyLimitViolation)
     {
-        HasColorIdentityViolation = validation.HasColorIdentityViolation;
-        HasCopyLimitViolation = validation.HasCopyLimitViolation;
+        HasColorIdentityViolation = hasColorIdentityViolation;
+        HasCopyLimitViolation = hasCopyLimitViolation;
     }
 
     /// <summary>

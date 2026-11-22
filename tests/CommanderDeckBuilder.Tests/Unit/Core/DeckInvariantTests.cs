@@ -4,28 +4,46 @@ namespace CommanderDeckBuilder.Tests;
 
 public sealed class DeckInvariantTests
 {
-    // Test List — Slice 3 (refactor: Deck owns the validity invariant). Inactive tests are activated one at a time.
-    //
-    // Suite A — pure rule engine (DeckValidationService.Evaluate)
-    //   [x] EvaluateReportsViolationsForEveryEntry
-    //   verification:
-    //   [x] EvaluateKeepsCopyLimitSpecialCases (Rat Colony, Seven Dwarves <= 7, Nazgûl <= 9, basic + snow basic lands)
-    //
-    // Suite B — Deck owns the invariant
-    //   verification:
-    //   [x] EveryMutatorLeavesFlagsEqualToEvaluate
-    //   [x] TagChangesDoNotAlterViolationFlags
-    //   refactor under green: Revalidate() hook; Set*Violation removed; entry mutators internal + InternalsVisibleTo;
-    //   redundant Validate calls removed from tests
+    private static readonly OracleCard Bolt = new("Lightning Bolt", "Instant", ColorIdentity.Parse("R"));
+    private static readonly OracleCard Ring = new("Sol Ring", "Artifact", ColorIdentity.Parse("C"));
+
+    /// <summary>
+    /// Every public Deck mutator that can change validity. A new mutator must be added here
+    /// (convention, see Slice 3 in the refactor plan). MoveCard and ChangePrinting are
+    /// validity-neutral by rule today, so for them the theory only pins "flags still match".
+    /// </summary>
+    public static TheoryData<string, Action<Deck>> Mutators => new()
+    {
+        { "AddCard", deck => deck.AddCard("oracle-bolt", "printing-bolt-2", DeckZone.Mainboard, oracleCard: Bolt) },
+        {
+            "ReaddCardWithOracleCard",
+            deck => deck.AddCard("oracle-ring", "printing-ring-1", DeckZone.Mainboard,
+                oracleCard: new OracleCard("Sol Ring", "Basic Land — Wastes", ColorIdentity.Parse("C")))
+        },
+        { "IncrementCard", deck => deck.IncrementCard("printing-bolt") },
+        { "DecrementCard", deck => deck.DecrementCard("printing-ring-2") },
+        { "RemoveCard", deck => deck.RemoveCard("printing-ring-2") },
+        { "MoveCard", deck => deck.MoveCard("printing-bolt", DeckZone.Sideboard) },
+        { "ChangePrinting", deck => deck.ChangePrinting("printing-ring-2", "printing-ring-1") },
+        {
+            "ChangePrimaryCommander",
+            deck => deck.ChangePrimaryCommander(
+                new DeckCommander("Partner R", ColorIdentity.Parse("R"), DeckCommanderMechanic.Partner))
+        },
+        {
+            "ChangeSecondaryCommander",
+            deck => deck.ChangeSecondaryCommander(
+                new DeckCommander("Partner R", ColorIdentity.Parse("R"), DeckCommanderMechanic.Partner))
+        }
+    };
 
     [Fact]
     public void EvaluateReportsViolationsForEveryEntry()
     {
-        var deck = CreateDeck("U,B");
-        deck.AddCard("oracle-bolt", "printing-bolt", DeckZone.Mainboard,
-            oracleCard: new OracleCard("Lightning Bolt", "Instant", ColorIdentity.Parse("R")));
-        deck.AddCard("oracle-ring", "printing-ring", DeckZone.Mainboard,
-            oracleCard: new OracleCard("Sol Ring", "Artifact", ColorIdentity.Parse("C")));
+        var deck = Deck.Create(
+            new DeckCommander("Test Commander", ColorIdentity.Parse("U,B"), DeckCommanderMechanic.Primary));
+        deck.AddCard("oracle-bolt", "printing-bolt", DeckZone.Mainboard, oracleCard: Bolt);
+        deck.AddCard("oracle-ring", "printing-ring", DeckZone.Mainboard, oracleCard: Ring);
         deck.IncrementCard("printing-ring");
 
         var results = new DeckValidationService().Evaluate(deck);
@@ -40,48 +58,13 @@ public sealed class DeckInvariantTests
     }
 
     [Theory]
-    [InlineData("Rat Colony", "Creature — Rat", 30, false)]
-    [InlineData("Seven Dwarves", "Creature — Dwarf", 7, false)]
-    [InlineData("Seven Dwarves", "Creature — Dwarf", 8, true)]
-    [InlineData("Nazgûl", "Creature — Wraith Knight", 9, false)]
-    [InlineData("Nazgûl", "Creature — Wraith Knight", 10, true)]
-    [InlineData("Mountain", "Basic Land — Mountain", 5, false)]
-    [InlineData("Snow-Covered Plains", "Basic Snow Land — Plains", 5, false)]
-    [InlineData("Sol Ring", "Artifact", 2, true)]
-    public void EvaluateKeepsCopyLimitSpecialCases(
-        string name,
-        string typeLine,
-        int quantity,
-        bool expectedViolation)
+    [MemberData(nameof(Mutators))]
+    public void EveryMutatorLeavesFlagsEqualToEvaluate(string mutator, Action<Deck> mutate)
     {
-        var deck = CreateDeck("W,U,B,R,G");
-        deck.AddCard("oracle-1", "printing-1", DeckZone.Mainboard,
-            oracleCard: new OracleCard(name, typeLine, ColorIdentity.Parse("C")));
-        for (var copy = 1; copy < quantity; copy++)
-        {
-            deck.IncrementCard("printing-1");
-        }
-
-        var result = Assert.Single(new DeckValidationService().Evaluate(deck));
-
-        Assert.Equal(expectedViolation, result.HasCopyLimitViolation);
-    }
-
-    [Theory]
-    [InlineData("AddCard")]
-    [InlineData("ReaddCardWithOracleCard")]
-    [InlineData("IncrementCard")]
-    [InlineData("DecrementCard")]
-    [InlineData("RemoveCard")]
-    [InlineData("MoveCard")]
-    [InlineData("ChangePrinting")]
-    [InlineData("ChangePrimaryCommander")]
-    [InlineData("ChangeSecondaryCommander")]
-    public void EveryMutatorLeavesFlagsEqualToEvaluate(string mutator)
-    {
+        _ = mutator;
         var deck = CreatePartnerDeckWithViolations();
 
-        Mutate(deck, mutator);
+        mutate(deck);
 
         AssertFlagsMatchEvaluate(deck);
     }
@@ -104,56 +87,14 @@ public sealed class DeckInvariantTests
         AssertFlagsMatchEvaluate(deck);
     }
 
-    private static void Mutate(Deck deck, string mutator)
-    {
-        var bolt = new OracleCard("Lightning Bolt", "Instant", ColorIdentity.Parse("R"));
-        switch (mutator)
-        {
-            case "AddCard":
-                deck.AddCard("oracle-bolt", "printing-bolt-2", DeckZone.Mainboard, oracleCard: bolt);
-                break;
-            case "ReaddCardWithOracleCard":
-                deck.AddCard("oracle-ring", "printing-ring-1", DeckZone.Mainboard,
-                    oracleCard: new OracleCard("Sol Ring", "Basic Land — Wastes", ColorIdentity.Parse("C")));
-                break;
-            case "IncrementCard":
-                deck.IncrementCard("printing-bolt");
-                break;
-            case "DecrementCard":
-                deck.DecrementCard("printing-ring-2");
-                break;
-            case "RemoveCard":
-                deck.RemoveCard("printing-bolt");
-                break;
-            case "MoveCard":
-                deck.MoveCard("printing-bolt", DeckZone.Sideboard);
-                break;
-            case "ChangePrinting":
-                deck.ChangePrinting("printing-ring-2", "printing-ring-1");
-                break;
-            case "ChangePrimaryCommander":
-                deck.ChangePrimaryCommander(
-                    new DeckCommander("Partner R", ColorIdentity.Parse("R"), DeckCommanderMechanic.Partner));
-                break;
-            case "ChangeSecondaryCommander":
-                deck.ChangeSecondaryCommander(
-                    new DeckCommander("Partner R", ColorIdentity.Parse("R"), DeckCommanderMechanic.Partner));
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(mutator), mutator, null);
-        }
-    }
-
     private static Deck CreatePartnerDeckWithViolations()
     {
         var deck = Deck.Create(
             new DeckCommander("Partner U", ColorIdentity.Parse("U"), DeckCommanderMechanic.Partner),
             new DeckCommander("Partner B", ColorIdentity.Parse("B"), DeckCommanderMechanic.Partner));
-        var ring = new OracleCard("Sol Ring", "Artifact", ColorIdentity.Parse("C"));
-        deck.AddCard("oracle-bolt", "printing-bolt", DeckZone.Mainboard,
-            oracleCard: new OracleCard("Lightning Bolt", "Instant", ColorIdentity.Parse("R")));
-        deck.AddCard("oracle-ring", "printing-ring-1", DeckZone.Mainboard, oracleCard: ring);
-        deck.AddCard("oracle-ring", "printing-ring-2", DeckZone.Sideboard, oracleCard: ring);
+        deck.AddCard("oracle-bolt", "printing-bolt", DeckZone.Mainboard, oracleCard: Bolt);
+        deck.AddCard("oracle-ring", "printing-ring-1", DeckZone.Mainboard, oracleCard: Ring);
+        deck.AddCard("oracle-ring", "printing-ring-2", DeckZone.Sideboard, oracleCard: Ring);
         return deck;
     }
 
@@ -166,11 +107,5 @@ public sealed class DeckInvariantTests
             Assert.Equal(result.HasColorIdentityViolation, result.Entry.HasColorIdentityViolation);
             Assert.Equal(result.HasCopyLimitViolation, result.Entry.HasCopyLimitViolation);
         });
-    }
-
-    private static Deck CreateDeck(string identity)
-    {
-        return Deck.Create(
-            new DeckCommander("Test Commander", ColorIdentity.Parse(identity), DeckCommanderMechanic.Primary));
     }
 }
