@@ -65,8 +65,84 @@ public sealed class Slice5ScryfallSyncServiceTests
         Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM SyncMetadata"));
     }
 
+    [Fact]
+    public async Task Sync_does_not_import_non_deck_objects()
+    {
+        using var fixture = new StorageFixture();
+        fixture.Initializer.Initialize();
+        using var httpClient = new HttpClient(new BulkStubHandler("""
+            [
+              {
+                "oracle_id": "oracle-bolt",
+                "name": "Lightning Bolt",
+                "layout": "normal",
+                "type_line": "Instant",
+                "color_identity": ["R"],
+                "id": "card-bolt",
+                "set": "lea",
+                "set_name": "Limited Edition Alpha",
+                "collector_number": "161",
+                "rarity": "common"
+              },
+              {
+                "oracle_id": "oracle-treasure",
+                "name": "Treasure",
+                "layout": "token",
+                "type_line": "Token Artifact — Treasure",
+                "color_identity": [],
+                "id": "card-treasure",
+                "set": "tlci",
+                "set_name": "The Lost Caverns of Ixalan Tokens",
+                "collector_number": "21",
+                "rarity": "common"
+              }
+            ]
+            """));
+        var metadataClient = new ScryfallBulkMetadataClient(httpClient);
+        var service = new ScryfallSyncService(fixture.Paths, metadataClient, httpClient);
+
+        var progress = new List<SyncProgress>();
+
+        await service.SynchronizeAsync(new SynchronousProgress(progress.Add));
+
+        Assert.Equal(2, progress.Max(item => item.CardsProcessed));
+        using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
+        connection.Open();
+        Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM OracleCards"));
+        Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM CardPrintings"));
+        Assert.Equal("Lightning Bolt", connection.ExecuteScalar<string>("SELECT Name FROM OracleCards"));
+    }
+
+    private sealed class SynchronousProgress(Action<SyncProgress> report) : IProgress<SyncProgress>
+    {
+        public void Report(SyncProgress value) => report(value);
+    }
+
     private sealed class BulkStubHandler : HttpMessageHandler
     {
+        private const string DefaultCardsJson = """
+            [
+              {
+                "oracle_id": "oracle-sync",
+                "name": "Sync Card",
+                "type_line": "Creature",
+                "color_identity": ["G"],
+                "id": "card-sync",
+                "set": "abc",
+                "set_name": "Example Set",
+                "collector_number": "1",
+                "rarity": "common"
+              }
+            ]
+            """;
+
+        private readonly string _cardsJson;
+
+        public BulkStubHandler(string cardsJson = DefaultCardsJson)
+        {
+            _cardsJson = cardsJson;
+        }
+
         public int DownloadRequests { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
@@ -84,21 +160,7 @@ public sealed class Slice5ScryfallSyncServiceTests
             }
 
             DownloadRequests++;
-            return Task.FromResult(JsonResponse("""
-                [
-                  {
-                    "oracle_id": "oracle-sync",
-                    "name": "Sync Card",
-                    "type_line": "Creature",
-                    "color_identity": ["G"],
-                    "id": "card-sync",
-                    "set": "abc",
-                    "set_name": "Example Set",
-                    "collector_number": "1",
-                    "rarity": "common"
-                  }
-                ]
-                """));
+            return Task.FromResult(JsonResponse(_cardsJson));
         }
 
         private static HttpResponseMessage JsonResponse(string body)

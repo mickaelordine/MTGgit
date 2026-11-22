@@ -59,6 +59,7 @@ public static class ScryfallBulkParser
         {
             OracleId = source.OracleId ?? string.Empty,
             Name = source.Name ?? string.Empty,
+            Layout = source.Layout ?? string.Empty,
             ManaCost = source.ManaCost,
             Cmc = source.Cmc,
             TypeLine = source.TypeLine ?? string.Empty,
@@ -76,6 +77,9 @@ public static class ScryfallBulkParser
             Faces = source.Faces?.Select(face => new ScryfallFaceDocument
             {
                 Name = face.Name ?? string.Empty,
+                OracleId = face.OracleId,
+                TypeLine = face.TypeLine ?? string.Empty,
+                OracleText = face.OracleText,
                 ColorIdentity = face.ColorIdentity ?? [],
                 ImageUriNormal = face.ImageUris?.Normal,
                 ImageUriArtCrop = face.ImageUris?.ArtCrop
@@ -91,6 +95,9 @@ public static class ScryfallBulkParser
 
         [JsonPropertyName("name")]
         public string? Name { get; init; }
+
+        [JsonPropertyName("layout")]
+        public string? Layout { get; init; }
 
         [JsonPropertyName("mana_cost")]
         public string? ManaCost { get; init; }
@@ -140,6 +147,15 @@ public static class ScryfallBulkParser
     {
         [JsonPropertyName("name")]
         public string? Name { get; init; }
+
+        [JsonPropertyName("oracle_id")]
+        public string? OracleId { get; init; }
+
+        [JsonPropertyName("type_line")]
+        public string? TypeLine { get; init; }
+
+        [JsonPropertyName("oracle_text")]
+        public string? OracleText { get; init; }
 
         [JsonPropertyName("color_identity")]
         public string[]? ColorIdentity { get; init; }

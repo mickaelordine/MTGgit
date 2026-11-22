@@ -95,4 +95,51 @@ public sealed class Slice3ScryfallBulkParserTests
         Assert.Equal("G,U", mapped.OracleCard.ColorIdentity);
         Assert.Equal("https://example.test/back.png", mapped.CardPrinting.BackImageUriNormal);
     }
+
+    [Fact]
+    public async Task Parses_layout_and_face_oracle_fields()
+    {
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("""
+            [
+              {
+                "name": "Adrix and Nev, Twincasters // Adrix and Nev, Twincasters",
+                "layout": "reversible_card",
+                "color_identity": ["G", "U"],
+                "id": "card-rev",
+                "set": "sld",
+                "set_name": "Secret Lair Drop",
+                "collector_number": "1",
+                "rarity": "mythic",
+                "card_faces": [
+                  {
+                    "oracle_id": "oracle-adrix",
+                    "name": "Adrix and Nev, Twincasters",
+                    "type_line": "Legendary Creature — Merfolk Dryad",
+                    "oracle_text": "Ward {2}"
+                  },
+                  {
+                    "oracle_id": "oracle-adrix",
+                    "name": "Adrix and Nev, Twincasters",
+                    "type_line": "Legendary Creature — Merfolk Dryad",
+                    "oracle_text": "Ward {2}"
+                  }
+                ]
+              }
+            ]
+            """));
+
+        var cards = new List<ScryfallCardDocument>();
+        await foreach (var card in ScryfallBulkParser.ReadAsync(stream))
+        {
+            cards.Add(card);
+        }
+
+        var parsed = Assert.Single(cards);
+        Assert.Equal("reversible_card", parsed.Layout);
+        Assert.Equal(string.Empty, parsed.OracleId);
+        var front = parsed.Faces[0];
+        Assert.Equal("oracle-adrix", front.OracleId);
+        Assert.Equal("Legendary Creature — Merfolk Dryad", front.TypeLine);
+        Assert.Equal("Ward {2}", front.OracleText);
+    }
 }

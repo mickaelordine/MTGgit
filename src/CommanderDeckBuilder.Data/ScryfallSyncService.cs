@@ -124,7 +124,7 @@ public sealed class ScryfallSyncService
         return updatedAt;
     }
 
-    /// \brief Maps parsed cards while reporting the number processed.
+    /// \brief Maps parsed deck cards (skipping non-deck objects) while reporting the number processed.
     /// \param cards The asynchronous source-card sequence.
     /// \param progress The optional progress receiver.
     /// \param totalBytes The HTTP content length, when known.
@@ -141,7 +141,10 @@ public sealed class ScryfallSyncService
         {
             count++;
             progress?.Report(new SyncProgress(count, totalBytes));
-            yield return ScryfallCardMapper.Map(card);
+            if (ScryfallCardMapper.IsDeckCard(card))
+            {
+                yield return ScryfallCardMapper.Map(card);
+            }
         }
     }
 }
