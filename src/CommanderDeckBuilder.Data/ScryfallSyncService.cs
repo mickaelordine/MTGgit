@@ -67,9 +67,9 @@ public sealed class ScryfallSyncService
                 progress,
                 totalBytes,
                 cancellationToken),
+            commanderOracleIds,
             remote.UpdatedAt,
-            cancellationToken,
-            commanderOracleIds);
+            cancellationToken);
 
         return new SyncResult(Downloaded: true);
     }

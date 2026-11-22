@@ -8,28 +8,18 @@ namespace CommanderDeckBuilder.Tests;
 
 public sealed class Slice4ScryfallBulkImporterTests
 {
+    private static readonly DateTimeOffset FirstTimestamp = DateTimeOffset.Parse("2024-01-02T03:04:05Z");
+    private static readonly DateTimeOffset SecondTimestamp = DateTimeOffset.Parse("2024-01-03T03:04:05Z");
+
     [Fact]
     public async Task Persists_an_oracle_card_and_its_printing()
     {
         using var fixture = new StorageFixture();
         fixture.Initializer.Initialize();
         var importer = new ScryfallBulkImporter(fixture.Paths);
-        var mapped = ScryfallCardMapper.Map(new ScryfallCardDocument
-        {
-            OracleId = "oracle-1",
-            Name = "Example Card",
-            TypeLine = "Creature",
-            ColorIdentity = ["G"],
-            ScryfallId = "card-1",
-            SetCode = "abc",
-            SetName = "Example Set",
-            CollectorNumber = "1",
-            Rarity = "common"
-        });
+        var card = CardDocument("oracle-1", "Example Card", colorIdentity: ["G"]);
 
-        await importer.ImportAsync(
-            One(mapped),
-            DateTimeOffset.Parse("2024-01-02T03:04:05Z"));
+        await importer.ImportAsync(Cards(card), NoCommanders(), FirstTimestamp);
 
         using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
         connection.Open();
@@ -48,8 +38,8 @@ public sealed class Slice4ScryfallBulkImporterTests
 
         await importer.ImportAsync(
             Cards(CardDocument("oracle-esika", "Esika, God of the Tree"), CardDocument("oracle-bolt", "Lightning Bolt")),
-            DateTimeOffset.Parse("2024-01-02T03:04:05Z"),
-            commanderOracleIds: new HashSet<string>(StringComparer.Ordinal) { "oracle-esika" });
+            CommanderList("oracle-esika"),
+            FirstTimestamp);
 
         using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
         connection.Open();
@@ -65,34 +55,28 @@ public sealed class Slice4ScryfallBulkImporterTests
 
         await importer.ImportAsync(
             Cards(CardDocument("oracle-esika", "Esika, God of the Tree")),
-            DateTimeOffset.Parse("2024-01-02T03:04:05Z"),
-            commanderOracleIds: new HashSet<string>(StringComparer.Ordinal) { "oracle-esika", "oracle-missing" });
+            CommanderList("oracle-esika", "oracle-missing"),
+            FirstTimestamp);
 
         using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
         connection.Open();
         Assert.Equal(["oracle-esika"], connection.Query<string>("SELECT OracleId FROM Commanders"));
     }
 
-    private static ScryfallCardDocument CardDocument(string oracleId, string name) => new()
+    [Fact]
+    public async Task Import_replaces_the_commander_list_of_a_previous_import()
     {
-        OracleId = oracleId,
-        Name = name,
-        TypeLine = "Creature",
-        ScryfallId = "card-" + oracleId,
-        SetCode = "abc",
-        SetName = "Example Set",
-        CollectorNumber = "1",
-        Rarity = "common"
-    };
+        using var fixture = new StorageFixture();
+        fixture.Initializer.Initialize();
+        var importer = new ScryfallBulkImporter(fixture.Paths);
+        var catalog = new[] { CardDocument("oracle-a", "Card A"), CardDocument("oracle-b", "Card B") };
 
-    private static async IAsyncEnumerable<MappedScryfallCard> Cards(params ScryfallCardDocument[] documents)
-    {
-        foreach (var document in documents)
-        {
-            yield return ScryfallCardMapper.Map(document);
-        }
+        await importer.ImportAsync(Cards(catalog), CommanderList("oracle-a"), FirstTimestamp);
+        await importer.ImportAsync(Cards(catalog), CommanderList("oracle-b"), SecondTimestamp);
 
-        await Task.CompletedTask;
+        using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
+        connection.Open();
+        Assert.Equal(["oracle-b"], connection.Query<string>("SELECT OracleId FROM Commanders"));
     }
 
     [Fact]
@@ -101,22 +85,10 @@ public sealed class Slice4ScryfallBulkImporterTests
         using var fixture = new StorageFixture();
         fixture.Initializer.Initialize();
         var importer = new ScryfallBulkImporter(fixture.Paths);
-        var mapped = ScryfallCardMapper.Map(new ScryfallCardDocument
-        {
-            OracleId = "oracle-rollback",
-            Name = "Rollback Card",
-            TypeLine = "Creature",
-            ScryfallId = "card-rollback",
-            SetCode = "abc",
-            SetName = "Example Set",
-            CollectorNumber = "1",
-            Rarity = "common"
-        });
+        var mapped = ScryfallCardMapper.Map(CardDocument("oracle-rollback", "Rollback Card"));
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => importer.ImportAsync(
-                FailAfter(mapped),
-                DateTimeOffset.Parse("2024-01-02T03:04:05Z")));
+            () => importer.ImportAsync(FailAfter(mapped), NoCommanders(), FirstTimestamp));
 
         using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
         connection.Open();
@@ -131,23 +103,10 @@ public sealed class Slice4ScryfallBulkImporterTests
         using var fixture = new StorageFixture();
         fixture.Initializer.Initialize();
         var importer = new ScryfallBulkImporter(fixture.Paths);
-        var mapped = ScryfallCardMapper.Map(new ScryfallCardDocument
-        {
-            OracleId = "oracle-upsert",
-            Name = "Upsert Card",
-            TypeLine = "Creature",
-            ScryfallId = "card-upsert",
-            SetCode = "abc",
-            SetName = "Example Set",
-            CollectorNumber = "1",
-            Rarity = "common"
-        });
-        
-        var firstTimestamp = DateTimeOffset.Parse("2024-01-02T03:04:05Z");
-        var secondTimestamp = DateTimeOffset.Parse("2024-01-03T03:04:05Z");
+        var card = CardDocument("oracle-upsert", "Upsert Card", scryfallId: "card-upsert");
 
-        await importer.ImportAsync(One(mapped), firstTimestamp);
-        await importer.ImportAsync(One(mapped), secondTimestamp);
+        await importer.ImportAsync(Cards(card), NoCommanders(), FirstTimestamp);
+        await importer.ImportAsync(Cards(card), NoCommanders(), SecondTimestamp);
 
         using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
         connection.Open();
@@ -156,18 +115,42 @@ public sealed class Slice4ScryfallBulkImporterTests
         Assert.Equal(1, connection.ExecuteScalar<int>(
             "SELECT COUNT(*) FROM CardPrintings WHERE ScryfallId = 'card-upsert'"));
         Assert.Equal(
-            secondTimestamp.ToUniversalTime().ToString("O"),
+            SecondTimestamp.ToUniversalTime().ToString("O"),
             connection.ExecuteScalar<string>(
                 "SELECT UpdatedAt FROM SyncMetadata WHERE DatasetName = 'default-cards'"));
     }
 
-    private static async IAsyncEnumerable<MappedScryfallCard> One(
-        MappedScryfallCard mapped,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    private static ScryfallCardDocument CardDocument(
+        string oracleId,
+        string name,
+        string[]? colorIdentity = null,
+        string? scryfallId = null) => new()
+    {
+        OracleId = oracleId,
+        Name = name,
+        TypeLine = "Creature",
+        ColorIdentity = colorIdentity ?? [],
+        ScryfallId = scryfallId ?? "card-" + oracleId,
+        SetCode = "abc",
+        SetName = "Example Set",
+        CollectorNumber = "1",
+        Rarity = "common"
+    };
+
+    /// <summary>A catalog in which Scryfall lists no commander.</summary>
+    private static IReadOnlySet<string> NoCommanders() => new HashSet<string>(StringComparer.Ordinal);
+
+    private static IReadOnlySet<string> CommanderList(params string[] oracleIds) =>
+        new HashSet<string>(oracleIds, StringComparer.Ordinal);
+
+    private static async IAsyncEnumerable<MappedScryfallCard> Cards(
+        params ScryfallCardDocument[] documents)
     {
         await Task.Yield();
-        cancellationToken.ThrowIfCancellationRequested();
-        yield return mapped;
+        foreach (var document in documents)
+        {
+            yield return ScryfallCardMapper.Map(document);
+        }
     }
 
     private static async IAsyncEnumerable<MappedScryfallCard> FailAfter(

@@ -17,18 +17,20 @@ public sealed class ScryfallBulkImporter
 
     /// \brief Imports cards and updates synchronization metadata atomically.
     /// \param cards The asynchronous sequence of normalized card records.
+    /// \param commanderOracleIds The oracle ids Scryfall accepts as commanders (`is:commander`); they
+    /// replace the previous list in the same transaction (an empty set leaves no commanders).
     /// \param updatedAt The remote dataset timestamp to store after success.
     /// \param cancellationToken Cancels enumeration, SQL operations, or commit.
-    /// \param commanderOracleIds The oracle ids Scryfall accepts as commanders (`is:commander`), written to
-    /// `Commanders` in the same transaction; null writes none.
     /// \return A task that completes after the transaction commits.
     /// \exception Exception Propagates import failures and causes transaction rollback.
     public async Task ImportAsync(
         IAsyncEnumerable<MappedScryfallCard> cards,
+        IReadOnlySet<string> commanderOracleIds,
         DateTimeOffset updatedAt,
-        CancellationToken cancellationToken = default,
-        IReadOnlySet<string>? commanderOracleIds = null)
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(commanderOracleIds);
+
         await using var connection = new SqliteConnection(_paths.ConnectionString);
         await connection.OpenAsync(cancellationToken);
         await using var transaction = connection.BeginTransaction();
@@ -39,23 +41,31 @@ public sealed class ScryfallBulkImporter
             await UpsertCardPrintingAsync(connection, transaction, mapped.CardPrinting, cancellationToken);
         }
 
-        await InsertCommandersAsync(connection, transaction, commanderOracleIds, cancellationToken);
+        await ReplaceCommandersAsync(connection, transaction, commanderOracleIds, cancellationToken);
         await UpsertSyncMetadataAsync(connection, transaction, updatedAt, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
-    /// \brief Records which imported cards Scryfall accepts as commanders (`is:commander`).
+    /// rief Replaces the list of imported cards Scryfall accepts as commanders (`is:commander`);
+    /// the list is a full snapshot, so cards that left it stop being commanders.
     /// \param connection The open SQLite connection.
     /// \param transaction The transaction that owns the write.
     /// \param commanderOracleIds The commander oracle ids; ids missing from the catalog are ignored.
     /// \param cancellationToken Cancels the SQL commands.
-    private static async Task InsertCommandersAsync(
+    private static async Task ReplaceCommandersAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
-        IReadOnlySet<string>? commanderOracleIds,
+        IReadOnlySet<string> commanderOracleIds,
         CancellationToken cancellationToken)
     {
-        foreach (var oracleId in commanderOracleIds ?? new HashSet<string>())
+        await using (var clear = connection.CreateCommand())
+        {
+            clear.Transaction = transaction;
+            clear.CommandText = "DELETE FROM Commanders;";
+            await clear.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        foreach (var oracleId in commanderOracleIds)
         {
             await using var command = connection.CreateCommand();
             command.Transaction = transaction;

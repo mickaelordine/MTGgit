@@ -145,6 +145,7 @@ public sealed class CardSearchScryfallIntegrationTests
         var importer = new ScryfallBulkImporter(paths);
         await importer.ImportAsync(
             Enumerate(cards),
+            new HashSet<string>(),
             DateTimeOffset.UtcNow);
     }
 
