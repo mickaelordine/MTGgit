@@ -45,7 +45,6 @@ public sealed record OracleCardRecord(
     string TypeLine,
     string? OracleText,
     string ColorIdentity,
-    bool IsPossibleCommander,
     string? CommanderLegality);
 
 /// \brief Represents one released printing of an oracle card.
@@ -125,15 +124,9 @@ public static class ScryfallCardMapper
 
     /// \brief Maps one source card and its faces into oracle and printing records.
     /// \param source The Scryfall card document to map.
-    /// \param commanderOracleIds The oracle ids Scryfall accepts as commanders (`is:commander`);
-    /// a card is a possible commander only when its oracle id is in this set.
     /// \return The normalized oracle card and printing records.
-    public static MappedScryfallCard Map(
-        ScryfallCardDocument source,
-        IReadOnlySet<string> commanderOracleIds)
+    public static MappedScryfallCard Map(ScryfallCardDocument source)
     {
-        ArgumentNullException.ThrowIfNull(commanderOracleIds);
-
         var frontFace = source.Faces.FirstOrDefault();
         var backFace = source.Faces.Skip(1).FirstOrDefault();
         var oracleId = ResolveOracleId(source);
@@ -160,7 +153,6 @@ public static class ScryfallCardMapper
             source.TypeLine,
             source.OracleText ?? JoinFaceOracleText(source.Faces),
             normalizedColorIdentity,
-            commanderOracleIds.Contains(oracleId),
             source.CommanderLegality);
 
         var printing = new CardPrintingRecord(

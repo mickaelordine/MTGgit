@@ -86,7 +86,7 @@ public sealed class CardSearchScryfallIntegrationTests
         foreach (var name in names)
         {
             var card = await GetNamedCardAsync(httpClient, name);
-            cards.Add(ScryfallCardMapper.Map(card, new HashSet<string>()));
+            cards.Add(ScryfallCardMapper.Map(card));
         }
 
         await ImportAsync(

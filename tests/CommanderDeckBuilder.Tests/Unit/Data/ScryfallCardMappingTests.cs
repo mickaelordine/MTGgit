@@ -27,13 +27,12 @@ public sealed class Slice1ScryfallCardMappingTests
             ImageUriArtCrop = "https://example.test/front-art.jpg"
         };
 
-        var mapped = ScryfallCardMapper.Map(source, new HashSet<string>(StringComparer.Ordinal) { "oracle-1" });
+        var mapped = ScryfallCardMapper.Map(source);
 
         Assert.Equal("oracle-1", mapped.OracleCard.OracleId);
         Assert.Equal("Example Commander", mapped.OracleCard.Name);
         Assert.Equal("example commander", mapped.OracleCard.NormalizedName);
         Assert.Equal("B,U", mapped.OracleCard.ColorIdentity);
-        Assert.True(mapped.OracleCard.IsPossibleCommander);
         Assert.Equal("legal", mapped.OracleCard.CommanderLegality);
         Assert.Equal("card-1", mapped.CardPrinting.ScryfallId);
         Assert.Equal("oracle-1", mapped.CardPrinting.OracleId);
@@ -59,7 +58,7 @@ public sealed class Slice1ScryfallCardMappingTests
             Rarity = "uncommon"
         };
 
-        var mapped = ScryfallCardMapper.Map(source, new HashSet<string>());
+        var mapped = ScryfallCardMapper.Map(source);
 
         Assert.Equal("G", mapped.OracleCard.ColorIdentity);
     }
@@ -97,7 +96,7 @@ public sealed class Slice1ScryfallCardMappingTests
             ]
         };
 
-        var mapped = ScryfallCardMapper.Map(source, new HashSet<string>());
+        var mapped = ScryfallCardMapper.Map(source);
 
         Assert.Equal("G,U", mapped.OracleCard.ColorIdentity);
         Assert.Equal("https://example.test/front.png", mapped.CardPrinting.ImageUriNormal);
@@ -172,7 +171,7 @@ public sealed class Slice1ScryfallCardMappingTests
             Faces = [face, face]
         };
 
-        var mapped = ScryfallCardMapper.Map(source, new HashSet<string>());
+        var mapped = ScryfallCardMapper.Map(source);
 
         Assert.Equal("oracle-adrix", mapped.OracleCard.OracleId);
         Assert.Equal("oracle-adrix", mapped.CardPrinting.OracleId);
@@ -206,35 +205,10 @@ public sealed class Slice1ScryfallCardMappingTests
             ]
         };
 
-        var mapped = ScryfallCardMapper.Map(source, new HashSet<string>());
+        var mapped = ScryfallCardMapper.Map(source);
 
         Assert.Equal(
             "At the beginning of your upkeep, look at the top card of your library.\n//\nFlying",
             mapped.OracleCard.OracleText);
-    }
-
-    [Theory]
-    [InlineData("Esika, God of the Tree", "Legendary Creature — God", "oracle-esika", true)]
-    [InlineData("Westvale Abbey", "Land", "oracle-westvale", false)]
-    [InlineData("Estrid, the Masked", "Legendary Planeswalker — Estrid", "oracle-estrid", true)]
-    public void Possible_commanders_come_from_the_scryfall_commander_list(
-        string name,
-        string typeLine,
-        string oracleId,
-        bool expected)
-    {
-        var commanderOracleIds = new HashSet<string>(StringComparer.Ordinal) { "oracle-esika", "oracle-estrid" };
-        var source = new ScryfallCardDocument
-        {
-            OracleId = oracleId,
-            Name = name,
-            Layout = "normal",
-            TypeLine = typeLine,
-            ScryfallId = "card-" + oracleId
-        };
-
-        var mapped = ScryfallCardMapper.Map(source, commanderOracleIds);
-
-        Assert.Equal(expected, mapped.OracleCard.IsPossibleCommander);
     }
 }

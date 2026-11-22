@@ -49,7 +49,6 @@ public sealed class SqliteDatabaseInitializer
             TypeLine TEXT NOT NULL,
             OracleText TEXT,
             ColorIdentity TEXT NOT NULL,
-            IsPossibleCommander INTEGER NOT NULL,
             CommanderLegality TEXT
         );
 
@@ -64,6 +63,11 @@ public sealed class SqliteDatabaseInitializer
             ImageUriNormal TEXT,
             ImageUriArtCrop TEXT,
             BackImageUriNormal TEXT,
+            FOREIGN KEY (OracleId) REFERENCES OracleCards (OracleId)
+        );
+
+        CREATE TABLE IF NOT EXISTS Commanders (
+            OracleId TEXT NOT NULL PRIMARY KEY,
             FOREIGN KEY (OracleId) REFERENCES OracleCards (OracleId)
         );
 

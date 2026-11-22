@@ -114,7 +114,7 @@ public sealed class Slice5ScryfallSyncServiceTests
     }
 
     [Fact]
-    public async Task Sync_marks_possible_commanders_from_the_scryfall_list()
+    public async Task Sync_stores_the_scryfall_commander_list()
     {
         using var fixture = new StorageFixture();
         fixture.Initializer.Initialize();
@@ -128,10 +128,7 @@ public sealed class Slice5ScryfallSyncServiceTests
 
         using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
         connection.Open();
-        Assert.Equal(0, connection.ExecuteScalar<int>(
-            "SELECT IsPossibleCommander FROM OracleCards WHERE OracleId = 'oracle-not-listed'"));
-        Assert.Equal(1, connection.ExecuteScalar<int>(
-            "SELECT IsPossibleCommander FROM OracleCards WHERE OracleId = 'oracle-background-commander'"));
+        Assert.Equal(["oracle-background-commander"], connection.Query<string>("SELECT OracleId FROM Commanders"));
     }
 
     [Fact]

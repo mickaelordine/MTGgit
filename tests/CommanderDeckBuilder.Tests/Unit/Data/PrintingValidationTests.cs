@@ -87,10 +87,10 @@ public sealed class PrintingValidationTests
                 """
                 INSERT INTO OracleCards (
                     OracleId, Name, NormalizedName, Cmc, TypeLine,
-                    ColorIdentity, IsPossibleCommander)
+                    ColorIdentity)
                 VALUES (
                     @OracleId, 'Test Card', 'test card', 0, 'Test',
-                    '', 0)
+                    '')
                 """,
                 new { OracleId = oracleId.ToString("D") });
             connection.Execute(

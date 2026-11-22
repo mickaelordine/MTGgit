@@ -25,7 +25,7 @@ public sealed class Slice4ScryfallBulkImporterTests
             SetName = "Example Set",
             CollectorNumber = "1",
             Rarity = "common"
-        }, new HashSet<string>());
+        });
 
         await importer.ImportAsync(
             One(mapped),
@@ -37,6 +37,62 @@ public sealed class Slice4ScryfallBulkImporterTests
         Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM CardPrintings"));
         Assert.Equal("G", connection.ExecuteScalar<string>(
             "SELECT ColorIdentity FROM OracleCards WHERE OracleId = 'oracle-1'"));
+    }
+
+    [Fact]
+    public async Task Import_writes_commander_oracle_ids_to_the_commanders_table()
+    {
+        using var fixture = new StorageFixture();
+        fixture.Initializer.Initialize();
+        var importer = new ScryfallBulkImporter(fixture.Paths);
+
+        await importer.ImportAsync(
+            Cards(CardDocument("oracle-esika", "Esika, God of the Tree"), CardDocument("oracle-bolt", "Lightning Bolt")),
+            DateTimeOffset.Parse("2024-01-02T03:04:05Z"),
+            commanderOracleIds: new HashSet<string>(StringComparer.Ordinal) { "oracle-esika" });
+
+        using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
+        connection.Open();
+        Assert.Equal(["oracle-esika"], connection.Query<string>("SELECT OracleId FROM Commanders"));
+    }
+
+    [Fact]
+    public async Task Import_ignores_commander_ids_not_in_the_catalog()
+    {
+        using var fixture = new StorageFixture();
+        fixture.Initializer.Initialize();
+        var importer = new ScryfallBulkImporter(fixture.Paths);
+
+        await importer.ImportAsync(
+            Cards(CardDocument("oracle-esika", "Esika, God of the Tree")),
+            DateTimeOffset.Parse("2024-01-02T03:04:05Z"),
+            commanderOracleIds: new HashSet<string>(StringComparer.Ordinal) { "oracle-esika", "oracle-missing" });
+
+        using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
+        connection.Open();
+        Assert.Equal(["oracle-esika"], connection.Query<string>("SELECT OracleId FROM Commanders"));
+    }
+
+    private static ScryfallCardDocument CardDocument(string oracleId, string name) => new()
+    {
+        OracleId = oracleId,
+        Name = name,
+        TypeLine = "Creature",
+        ScryfallId = "card-" + oracleId,
+        SetCode = "abc",
+        SetName = "Example Set",
+        CollectorNumber = "1",
+        Rarity = "common"
+    };
+
+    private static async IAsyncEnumerable<MappedScryfallCard> Cards(params ScryfallCardDocument[] documents)
+    {
+        foreach (var document in documents)
+        {
+            yield return ScryfallCardMapper.Map(document);
+        }
+
+        await Task.CompletedTask;
     }
 
     [Fact]
@@ -55,7 +111,7 @@ public sealed class Slice4ScryfallBulkImporterTests
             SetName = "Example Set",
             CollectorNumber = "1",
             Rarity = "common"
-        }, new HashSet<string>());
+        });
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => importer.ImportAsync(
@@ -85,7 +141,7 @@ public sealed class Slice4ScryfallBulkImporterTests
             SetName = "Example Set",
             CollectorNumber = "1",
             Rarity = "common"
-        }, new HashSet<string>());
+        });
         
         var firstTimestamp = DateTimeOffset.Parse("2024-01-02T03:04:05Z");
         var secondTimestamp = DateTimeOffset.Parse("2024-01-03T03:04:05Z");

@@ -19,12 +19,15 @@ public sealed class ScryfallBulkImporter
     /// \param cards The asynchronous sequence of normalized card records.
     /// \param updatedAt The remote dataset timestamp to store after success.
     /// \param cancellationToken Cancels enumeration, SQL operations, or commit.
+    /// \param commanderOracleIds The oracle ids Scryfall accepts as commanders (`is:commander`), written to
+    /// `Commanders` in the same transaction; null writes none.
     /// \return A task that completes after the transaction commits.
     /// \exception Exception Propagates import failures and causes transaction rollback.
     public async Task ImportAsync(
         IAsyncEnumerable<MappedScryfallCard> cards,
         DateTimeOffset updatedAt,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlySet<string>? commanderOracleIds = null)
     {
         await using var connection = new SqliteConnection(_paths.ConnectionString);
         await connection.OpenAsync(cancellationToken);
@@ -36,8 +39,33 @@ public sealed class ScryfallBulkImporter
             await UpsertCardPrintingAsync(connection, transaction, mapped.CardPrinting, cancellationToken);
         }
 
+        await InsertCommandersAsync(connection, transaction, commanderOracleIds, cancellationToken);
         await UpsertSyncMetadataAsync(connection, transaction, updatedAt, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    /// \brief Records which imported cards Scryfall accepts as commanders (`is:commander`).
+    /// \param connection The open SQLite connection.
+    /// \param transaction The transaction that owns the write.
+    /// \param commanderOracleIds The commander oracle ids; ids missing from the catalog are ignored.
+    /// \param cancellationToken Cancels the SQL commands.
+    private static async Task InsertCommandersAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlySet<string>? commanderOracleIds,
+        CancellationToken cancellationToken)
+    {
+        foreach (var oracleId in commanderOracleIds ?? new HashSet<string>())
+        {
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT OR IGNORE INTO Commanders (OracleId)
+                SELECT OracleId FROM OracleCards WHERE OracleId = $oracleId;
+                """;
+            command.Parameters.AddWithValue("$oracleId", oracleId);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     /// \brief Inserts or updates one oracle card within the active transaction.
@@ -56,10 +84,10 @@ public sealed class ScryfallBulkImporter
         command.CommandText = """
             INSERT INTO OracleCards (
                 OracleId, Name, NormalizedName, ManaCost, Cmc, TypeLine,
-                OracleText, ColorIdentity, IsPossibleCommander, CommanderLegality)
+                OracleText, ColorIdentity, CommanderLegality)
             VALUES (
                 $oracleId, $name, $normalizedName, $manaCost, $cmc, $typeLine,
-                $oracleText, $colorIdentity, $isPossibleCommander, $commanderLegality)
+                $oracleText, $colorIdentity, $commanderLegality)
             ON CONFLICT (OracleId) DO UPDATE SET
                 Name = excluded.Name,
                 NormalizedName = excluded.NormalizedName,
@@ -68,7 +96,6 @@ public sealed class ScryfallBulkImporter
                 TypeLine = excluded.TypeLine,
                 OracleText = excluded.OracleText,
                 ColorIdentity = excluded.ColorIdentity,
-                IsPossibleCommander = excluded.IsPossibleCommander,
                 CommanderLegality = excluded.CommanderLegality;
             """;
         AddParameter(command, "$oracleId", card.OracleId);
@@ -79,7 +106,6 @@ public sealed class ScryfallBulkImporter
         AddParameter(command, "$typeLine", card.TypeLine);
         AddParameter(command, "$oracleText", card.OracleText);
         AddParameter(command, "$colorIdentity", card.ColorIdentity);
-        AddParameter(command, "$isPossibleCommander", card.IsPossibleCommander);
         AddParameter(command, "$commanderLegality", card.CommanderLegality);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }

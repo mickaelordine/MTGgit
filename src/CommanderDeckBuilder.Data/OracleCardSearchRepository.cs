@@ -48,14 +48,15 @@ public sealed class OracleCardSearchRepository
         var rows = await connection.QueryAsync<SearchRow>(
             """
             SELECT
-                OracleId,
-                Name,
-                NormalizedName,
-                ColorIdentity,
-                IsPossibleCommander
+                OracleCards.OracleId,
+                OracleCards.Name,
+                OracleCards.NormalizedName,
+                OracleCards.ColorIdentity,
+                Commanders.OracleId AS CommanderOracleId
             FROM OracleCards
-            WHERE NormalizedName LIKE @Pattern ESCAPE '\'
-            ORDER BY NormalizedName, OracleId
+            LEFT JOIN Commanders ON Commanders.OracleId = OracleCards.OracleId
+            WHERE OracleCards.NormalizedName LIKE @Pattern ESCAPE '\'
+            ORDER BY OracleCards.NormalizedName, OracleCards.OracleId
             """,
             new { Pattern = $"%{escapedQuery}%" });
 
@@ -64,7 +65,7 @@ public sealed class OracleCardSearchRepository
                 row.OracleId,
                 row.Name,
                 row.ColorIdentity,
-                row.IsPossibleCommander != 0,
+                row.CommanderOracleId is not null,
                 row.NormalizedName))
             .Where(card => CardSearchEligibility.IsEligible(
                 card,
@@ -88,12 +89,12 @@ public sealed class OracleCardSearchRepository
     }
 
     /// <summary>
-    /// Represents the SQLite row shape before converting integer flags to domain booleans.
+    /// Represents the SQLite row shape; a non-null commander id means the card is in <c>Commanders</c>.
     /// </summary>
     private sealed record SearchRow(
         string OracleId,
         string Name,
         string NormalizedName,
         string ColorIdentity,
-        long IsPossibleCommander);
+        string? CommanderOracleId);
 }

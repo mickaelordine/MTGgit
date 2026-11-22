@@ -37,19 +37,24 @@ internal sealed class SearchStorageFixture : IDisposable
             """
             INSERT INTO OracleCards (
                 OracleId, Name, NormalizedName, Cmc, TypeLine,
-                ColorIdentity, IsPossibleCommander)
+                ColorIdentity)
             VALUES (
                 @OracleId, @Name, @NormalizedName, 0, 'Test',
-                @ColorIdentity, @IsPossibleCommander)
+                @ColorIdentity)
             """,
             new
             {
                 OracleId = oracleId,
                 Name = name,
                 NormalizedName = normalizedName,
-                ColorIdentity = colorIdentity,
-                IsPossibleCommander = isPossibleCommander
+                ColorIdentity = colorIdentity
             });
+        if (isPossibleCommander)
+        {
+            connection.Execute(
+                "INSERT INTO Commanders (OracleId) VALUES (@OracleId)",
+                new { OracleId = oracleId });
+        }
     }
 
     public void Dispose()
