@@ -5,6 +5,7 @@ using CommanderDeckBuilder.Data;
 namespace CommanderDeckBuilder.Tests;
 
 /// \brief Verifies the live Scryfall bulk-data API contract.
+[Collection(ScryfallLiveApi.CollectionName)]
 public sealed class ScryfallApiIntegrationTests
 {
     /// \brief Queries Scryfall metadata and parses the first card from the live bulk stream.
@@ -18,6 +19,7 @@ public sealed class ScryfallApiIntegrationTests
             Timeout = TimeSpan.FromSeconds(30)
         };
         var metadataClient = new ScryfallBulkMetadataClient(httpClient);
+        await ScryfallLiveApi.ThrottleAsync();
         var metadata = await metadataClient.GetDefaultCardsMetadataAsync();
 
         Assert.Equal(Uri.UriSchemeHttps, metadata.DownloadUri.Scheme);

@@ -11,6 +11,7 @@ namespace CommanderDeckBuilder.Tests;
 /// <summary>
 /// Verifies card search against live Scryfall data persisted into SQLite.
 /// </summary>
+[Collection(ScryfallLiveApi.CollectionName)]
 public sealed class CardSearchScryfallIntegrationTests
 {
     [Fact]
@@ -111,6 +112,7 @@ public sealed class CardSearchScryfallIntegrationTests
         string name)
     {
         var endpoint = $"https://api.scryfall.com/cards/named?exact={Uri.EscapeDataString(name)}";
+        await ScryfallLiveApi.ThrottleAsync();
         var card = await httpClient.GetFromJsonAsync<NamedCard>(endpoint);
         if (card is null)
         {

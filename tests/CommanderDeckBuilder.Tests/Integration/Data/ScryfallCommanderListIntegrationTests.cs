@@ -4,6 +4,7 @@ using CommanderDeckBuilder.Data;
 namespace CommanderDeckBuilder.Tests;
 
 /// \brief Verifies the live Scryfall `is:commander` list against known commander-eligibility cases.
+[Collection(ScryfallLiveApi.CollectionName)]
 public sealed class ScryfallCommanderListIntegrationTests
 {
     private const string EsikaOracleId = "92023a5d-a143-4950-a71b-d736e6b8e959";
@@ -22,7 +23,10 @@ public sealed class ScryfallCommanderListIntegrationTests
         };
         var client = new ScryfallCommanderListClient(httpClient);
 
+        await ScryfallLiveApi.ThrottleAsync();
+
         var oracleIds = await client.GetCommanderOracleIdsAsync();
+        await ScryfallLiveApi.ThrottleAsync(); // the client paged on its own: re-stamp the last request time
 
         Assert.True(oracleIds.Count > 1000);
         Assert.Contains(EsikaOracleId, oracleIds);

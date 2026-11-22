@@ -10,6 +10,7 @@ namespace CommanderDeckBuilder.Tests;
 /// <summary>
 /// Verifies copy-limit validation with live Scryfall oracle and type-line data.
 /// </summary>
+[Collection(ScryfallLiveApi.CollectionName)]
 public sealed class DeckCopyLimitScryfallIntegrationTests
 {
     [Fact]
@@ -94,6 +95,7 @@ public sealed class DeckCopyLimitScryfallIntegrationTests
         httpClient.DefaultRequestHeaders.Accept.ParseAdd("application/json");
 
         var endpoint = $"https://api.scryfall.com/cards/named?exact={Uri.EscapeDataString(name)}";
+        await ScryfallLiveApi.ThrottleAsync();
         var card = await httpClient.GetFromJsonAsync<NamedCard>(endpoint);
         if (card is null)
         {

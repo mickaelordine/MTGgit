@@ -9,13 +9,15 @@ namespace CommanderDeckBuilder.Data;
 public sealed class ScryfallCommanderListClient
 {
     private const string FirstPage = "https://api.scryfall.com/cards/search?q=is%3Acommander&unique=cards";
-    private static readonly TimeSpan DefaultPageDelay = TimeSpan.FromMilliseconds(100);
+    /// \brief Pause between search pages: Scryfall allows 2 requests/second on /cards/search
+    /// (scryfall.com/docs/api/rate-limits); 600 ms keeps a margin above the 500 ms minimum.
+    public static readonly TimeSpan DefaultPageDelay = TimeSpan.FromMilliseconds(600);
     private readonly HttpClient _httpClient;
     private readonly TimeSpan _pageDelay;
 
     /// \brief Initializes the client.
     /// \param httpClient The HTTP client used for the Scryfall requests.
-    /// \param pageDelay The pause between page requests (Scryfall rate-limit etiquette); defaults to 100 ms.
+    /// \param pageDelay The pause between page requests; defaults to \ref DefaultPageDelay.
     public ScryfallCommanderListClient(HttpClient httpClient, TimeSpan? pageDelay = null)
     {
         _httpClient = httpClient;
@@ -61,6 +63,11 @@ public sealed class ScryfallCommanderListClient
         request.Headers.Accept.ParseAdd("application/json");
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+        {
+            throw new ScryfallRateLimitedException(response.Headers.RetryAfter?.Delta, body);
+        }
+
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException(

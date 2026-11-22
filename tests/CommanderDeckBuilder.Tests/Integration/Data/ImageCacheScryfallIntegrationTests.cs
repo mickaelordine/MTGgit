@@ -10,6 +10,7 @@ namespace CommanderDeckBuilder.Tests;
 /// <summary>
 /// Verifies the on-disk image cache against live Scryfall named-card data.
 /// </summary>
+[Collection(ScryfallLiveApi.CollectionName)]
 public sealed class ImageCacheScryfallIntegrationTests
 {
     [Fact]
@@ -97,6 +98,7 @@ public sealed class ImageCacheScryfallIntegrationTests
     {
         var endpoint =
             $"https://api.scryfall.com/cards/named?exact={Uri.EscapeDataString(name)}";
+        await ScryfallLiveApi.ThrottleAsync();
         var card = await httpClient.GetFromJsonAsync<NamedCard>(endpoint);
         if (card is null)
         {
