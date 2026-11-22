@@ -15,4 +15,13 @@ public sealed class CardNameNormalizerTests
     {
         Assert.Equal(expected, CardNameNormalizer.ToSearchKey(name));
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Blank_input_has_an_empty_search_key(string? name)
+    {
+        Assert.Equal(string.Empty, CardNameNormalizer.ToSearchKey(name));
+    }
 }

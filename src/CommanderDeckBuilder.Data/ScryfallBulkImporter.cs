@@ -15,14 +15,16 @@ public sealed class ScryfallBulkImporter
         _paths = paths;
     }
 
-    /// \brief Imports cards and updates synchronization metadata atomically.
+    /// \brief Replaces the local card catalog with one Scryfall snapshot and updates the sync metadata,
+    /// all in one transaction.
     /// \param cards The asynchronous sequence of normalized card records.
     /// \param commanderOracleIds The oracle ids Scryfall accepts as commanders (`is:commander`); they
-    /// replace the previous list in the same transaction (an empty set leaves no commanders).
+    /// replace the previous list (an empty set leaves no commanders).
     /// \param updatedAt The remote dataset timestamp to store after success.
     /// \param cancellationToken Cancels enumeration, SQL operations, or commit.
     /// \return A task that completes after the transaction commits.
-    /// \exception Exception Propagates import failures and causes transaction rollback.
+    /// \exception Exception Propagates import failures and causes transaction rollback (the previous
+    /// catalog is kept).
     public async Task ImportAsync(
         IAsyncEnumerable<MappedScryfallCard> cards,
         IReadOnlySet<string> commanderOracleIds,
@@ -34,6 +36,7 @@ public sealed class ScryfallBulkImporter
         await using var connection = new SqliteConnection(_paths.ConnectionString);
         await connection.OpenAsync(cancellationToken);
         await using var transaction = connection.BeginTransaction();
+        await ClearCatalogAsync(connection, transaction, cancellationToken);
 
         await foreach (var mapped in cards.WithCancellation(cancellationToken))
         {
@@ -41,30 +44,43 @@ public sealed class ScryfallBulkImporter
             await UpsertCardPrintingAsync(connection, transaction, mapped.CardPrinting, cancellationToken);
         }
 
-        await ReplaceCommandersAsync(connection, transaction, commanderOracleIds, cancellationToken);
+        await InsertCommandersAsync(connection, transaction, commanderOracleIds, cancellationToken);
         await UpsertSyncMetadataAsync(connection, transaction, updatedAt, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
-    /// rief Replaces the list of imported cards Scryfall accepts as commanders (`is:commander`);
-    /// the list is a full snapshot, so cards that left it stop being commanders.
+    /// \brief Empties the card catalog so the import is a full snapshot (cards Scryfall removed
+    /// disappear); the surrounding transaction restores everything if the import fails.
+    /// \param connection The open SQLite connection.
+    /// \param transaction The transaction that owns the write.
+    /// \param cancellationToken Cancels the SQL command.
+    private static async Task ClearCatalogAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM Commanders;
+            DELETE FROM CardPrintings;
+            DELETE FROM OracleCards;
+            """;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /// \brief Records which imported cards Scryfall accepts as commanders (`is:commander`); the
+    /// catalog was emptied first, so the stored list is exactly this import's list.
     /// \param connection The open SQLite connection.
     /// \param transaction The transaction that owns the write.
     /// \param commanderOracleIds The commander oracle ids; ids missing from the catalog are ignored.
     /// \param cancellationToken Cancels the SQL commands.
-    private static async Task ReplaceCommandersAsync(
+    private static async Task InsertCommandersAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
         IReadOnlySet<string> commanderOracleIds,
         CancellationToken cancellationToken)
     {
-        await using (var clear = connection.CreateCommand())
-        {
-            clear.Transaction = transaction;
-            clear.CommandText = "DELETE FROM Commanders;";
-            await clear.ExecuteNonQueryAsync(cancellationToken);
-        }
-
         foreach (var oracleId in commanderOracleIds)
         {
             await using var command = connection.CreateCommand();

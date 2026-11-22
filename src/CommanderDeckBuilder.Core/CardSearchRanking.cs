@@ -20,29 +20,30 @@ public static class CardSearchRanking
 
         var normalizedQuery = CardNameNormalizer.ToSearchKey(query);
         return candidates
-            .Select(candidate => new RankedCandidate(
-                candidate,
-                Score(candidate, normalizedQuery)))
+            .Select(candidate =>
+            {
+                var key = GetSearchKey(candidate);
+                return new RankedCandidate(candidate, key, Score(key, normalizedQuery));
+            })
             .OrderBy(item => item.Score.Rank)
             .ThenBy(item => item.Score.Distance)
             .ThenBy(item => item.Score.NameLength)
-            .ThenBy(item => item.Candidate.NormalizedName, StringComparer.Ordinal)
+            .ThenBy(item => item.Key, StringComparer.Ordinal)
             .ThenBy(item => item.Candidate.OracleId, StringComparer.Ordinal)
             .Select(item => item.Candidate)
             .ToArray();
     }
 
     /// <summary>
-    /// Calculates the match class and fuzzy distance for one candidate.
+    /// Calculates the match class and fuzzy distance for one candidate's search key.
     /// </summary>
-    /// <param name="candidate">The candidate to score.</param>
+    /// <param name="normalizedName">The candidate's search key.</param>
     /// <param name="query">The normalized query.</param>
     /// <returns>The candidate's ranking score.</returns>
     private static RankingScore Score(
-        CardSearchCandidate candidate,
+        string normalizedName,
         string query)
     {
-        var normalizedName = GetNormalizedName(candidate);
         if (normalizedName == query)
         {
             return new RankingScore(0, 0, normalizedName.Length);
@@ -65,11 +66,11 @@ public static class CardSearchRanking
     }
 
     /// <summary>
-    /// Gets the normalized name, deriving it when a caller omitted the field.
+    /// Gets the candidate's search key, deriving it from the name when a caller omitted it.
     /// </summary>
     /// <param name="candidate">The candidate to normalize.</param>
     /// <returns>The case- and diacritic-insensitive search key of the card name.</returns>
-    private static string GetNormalizedName(CardSearchCandidate candidate)
+    private static string GetSearchKey(CardSearchCandidate candidate)
     {
         return CardNameNormalizer.ToSearchKey(
             string.IsNullOrEmpty(candidate.NormalizedName) ? candidate.Name : candidate.NormalizedName);
@@ -110,9 +111,10 @@ public static class CardSearchRanking
     private readonly record struct RankingScore(int Rank, int Distance, int NameLength);
 
     /// <summary>
-    /// Couples a candidate with its calculated ranking score.
+    /// Couples a candidate with its search key and calculated ranking score.
     /// </summary>
     private sealed record RankedCandidate(
         CardSearchCandidate Candidate,
+        string Key,
         RankingScore Score);
 }

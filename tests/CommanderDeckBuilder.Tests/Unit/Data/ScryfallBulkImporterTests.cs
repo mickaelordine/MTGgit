@@ -80,6 +80,49 @@ public sealed class Slice4ScryfallBulkImporterTests
     }
 
     [Fact]
+    public async Task Import_replaces_the_whole_catalog()
+    {
+        using var fixture = new StorageFixture();
+        fixture.Initializer.Initialize();
+        var importer = new ScryfallBulkImporter(fixture.Paths);
+
+        await importer.ImportAsync(
+            Cards(CardDocument("oracle-a", "Card A"), CardDocument("oracle-b", "Card B")),
+            NoCommanders(),
+            FirstTimestamp);
+        await importer.ImportAsync(Cards(CardDocument("oracle-b", "Card B")), NoCommanders(), SecondTimestamp);
+
+        using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
+        connection.Open();
+        Assert.Equal(["oracle-b"], connection.Query<string>("SELECT OracleId FROM OracleCards"));
+        Assert.Equal(["card-oracle-b"], connection.Query<string>("SELECT ScryfallId FROM CardPrintings"));
+    }
+
+    [Fact]
+    public async Task Failed_import_keeps_the_previous_catalog()
+    {
+        using var fixture = new StorageFixture();
+        fixture.Initializer.Initialize();
+        var importer = new ScryfallBulkImporter(fixture.Paths);
+        await importer.ImportAsync(Cards(CardDocument("oracle-a", "Card A")), CommanderList("oracle-a"), FirstTimestamp);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => importer.ImportAsync(
+                FailAfter(ScryfallCardMapper.Map(CardDocument("oracle-b", "Card B"))),
+                CommanderList("oracle-b"),
+                SecondTimestamp));
+
+        using var connection = new SqliteConnection(fixture.Paths.ConnectionString);
+        connection.Open();
+        Assert.Equal(["oracle-a"], connection.Query<string>("SELECT OracleId FROM OracleCards"));
+        Assert.Equal(["card-oracle-a"], connection.Query<string>("SELECT ScryfallId FROM CardPrintings"));
+        Assert.Equal(["oracle-a"], connection.Query<string>("SELECT OracleId FROM Commanders"));
+        Assert.Equal(
+            FirstTimestamp.ToUniversalTime().ToString("O"),
+            connection.ExecuteScalar<string>("SELECT UpdatedAt FROM SyncMetadata WHERE DatasetName = 'default-cards'"));
+    }
+
+    [Fact]
     public async Task Rolls_back_cards_and_metadata_when_import_fails()
     {
         using var fixture = new StorageFixture();
@@ -98,7 +141,7 @@ public sealed class Slice4ScryfallBulkImporterTests
     }
 
     [Fact]
-    public async Task Reimporting_the_same_dataset_upserts_rows_and_metadata()
+    public async Task Reimporting_the_same_dataset_keeps_one_row_per_card_and_advances_the_timestamp()
     {
         using var fixture = new StorageFixture();
         fixture.Initializer.Initialize();
