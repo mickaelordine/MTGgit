@@ -35,7 +35,7 @@ public sealed class DeckCardEntry
     /// </summary>
     /// <param name="oracleCard">The complete Oracle facts of the card.</param>
     [MemberNotNull(nameof(CardName), nameof(CardTypeLine))]
-    public void AttachOracleCard(OracleCard oracleCard)
+    internal void AttachOracleCard(OracleCard oracleCard)
     {
         ArgumentNullException.ThrowIfNull(oracleCard);
 
@@ -78,14 +78,10 @@ public sealed class DeckCardEntry
     public bool HasDeckValidationViolation =>
         HasColorIdentityViolation || HasCopyLimitViolation;
 
-    internal void SetColorIdentityViolation(bool hasViolation)
+    internal void ApplyValidation(EntryValidation validation)
     {
-        HasColorIdentityViolation = hasViolation;
-    }
-
-    internal void SetCopyLimitViolation(bool hasViolation)
-    {
-        HasCopyLimitViolation = hasViolation;
+        HasColorIdentityViolation = validation.HasColorIdentityViolation;
+        HasCopyLimitViolation = validation.HasCopyLimitViolation;
     }
 
     /// <summary>
@@ -93,7 +89,7 @@ public sealed class DeckCardEntry
     /// </summary>
     /// <param name="tags">The raw tags to add; may be null.</param>
     /// <returns><c>true</c> when at least one tag actually changed the tag set.</returns>
-    public bool AddTags(IEnumerable<string>? tags)
+    internal bool AddTags(IEnumerable<string>? tags)
     {
         var tagsChanged = false;
         foreach (var tag in tags ?? [])
@@ -107,7 +103,7 @@ public sealed class DeckCardEntry
     /// <summary>
     /// Merges quantities and tags when another entry represents the same Oracle and printing.
     /// </summary>
-    public bool MergeFrom(DeckCardEntry source)
+    internal bool MergeFrom(DeckCardEntry source)
     {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -120,7 +116,7 @@ public sealed class DeckCardEntry
     /// <summary>
     /// Increments the number of copies represented by this entry.
     /// </summary>
-    public void IncrementQuantity()
+    internal void IncrementQuantity()
     {
         Quantity++;
     }
@@ -129,7 +125,7 @@ public sealed class DeckCardEntry
     /// Decrements the number of copies; zero means the entry should be removed.
     /// </summary>
     /// <returns><see langword="true"/> when at least one copy remains.</returns>
-    public bool DecrementQuantity()
+    internal bool DecrementQuantity()
     {
         if (Quantity == 0)
         {
@@ -150,7 +146,7 @@ public sealed class DeckCardEntry
     /// <summary>
     /// Moves this entry to another deck zone.
     /// </summary>
-    public void MoveTo(DeckZone zone)
+    internal void MoveTo(DeckZone zone)
     {
         Zone = zone;
     }
@@ -158,7 +154,7 @@ public sealed class DeckCardEntry
     /// <summary>
     /// Changes the selected physical printing without changing card data or quantity.
     /// </summary>
-    public void ChangePrinting(string selectedPrintingScryfallId)
+    internal void ChangePrinting(string selectedPrintingScryfallId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(selectedPrintingScryfallId);
         SelectedPrintingScryfallId = selectedPrintingScryfallId;
@@ -170,7 +166,7 @@ public sealed class DeckCardEntry
     /// </summary>
     /// <param name="tag">The raw tag text, starting with <c>#</c> or <c>#!</c>.</param>
     /// <returns><c>true</c> only when the tag set actually changed.</returns>
-    public bool AddTag(string tag)
+    internal bool AddTag(string tag)
     {
         var tagsBefore = Tags;
         Tags = NormalizeTags(Tags.Append(tag));
@@ -180,7 +176,7 @@ public sealed class DeckCardEntry
     /// <summary>
     /// Removes a custom tag if it is present.
     /// </summary>
-    public bool RemoveTag(string tag)
+    internal bool RemoveTag(string tag)
     {
         var normalizedTag = Tag.Parse(tag).Value;
         var originalCount = Tags.Count;

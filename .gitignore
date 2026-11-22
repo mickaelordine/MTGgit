@@ -132,9 +132,8 @@ scryfall-bulk*.json
 AGENTS.md
 
 # Agent directories (.agents/)
-# Ignora tutto il contenuto temporaneo/stato di .agents/, ma MANTIENI le skill
-# del progetto se vuoi versionarle nel repo:
 .agents/*
 !.agents/skills/
 
-# NOTA: Se preferisci ignorare ANCHE le skill dentro .agents/skills/ e .github/skills/
+# Test coverage output
+TestResults/

@@ -5,6 +5,7 @@ namespace CommanderDeckBuilder.Core;
 /// </summary>
 public sealed class Deck
 {
+    private static readonly DeckValidationService Validation = new();
     private readonly List<DeckCardEntry> _entries = [];
 
     /// <summary>
@@ -72,7 +73,7 @@ public sealed class Deck
 
         PrimaryCommander = primaryCommander;
         EffectiveColorIdentity = CreateEffectiveColorIdentity(primaryCommander, SecondaryCommander);
-        new DeckValidationService().Validate(this);
+        Revalidate();
     }
 
     /// <summary>
@@ -91,7 +92,7 @@ public sealed class Deck
 
         SecondaryCommander = secondaryCommander;
         EffectiveColorIdentity = CreateEffectiveColorIdentity(PrimaryCommander, secondaryCommander);
-        new DeckValidationService().Validate(this);
+        Revalidate();
     }
 
     /// <summary>
@@ -123,7 +124,7 @@ public sealed class Deck
             {
                 IsDirty = true;
             }
-            new DeckValidationService().Validate(this);
+            Revalidate();
             return;
         }
 
@@ -134,7 +135,7 @@ public sealed class Deck
             zone,
             tags,
             oracleCard));
-        new DeckValidationService().Validate(this);
+        Revalidate();
     }
 
     /// <summary>
@@ -143,7 +144,7 @@ public sealed class Deck
     public void IncrementCard(string selectedPrintingScryfallId)
     {
         GetEntry(selectedPrintingScryfallId).IncrementQuantity();
-        new DeckValidationService().Validate(this);
+        Revalidate();
     }
 
     /// <summary>
@@ -157,7 +158,7 @@ public sealed class Deck
         {
             _entries.Remove(entry);
         }
-        new DeckValidationService().Validate(this);
+        Revalidate();
     }
 
     /// <summary>
@@ -166,7 +167,7 @@ public sealed class Deck
     public void RemoveCard(string selectedPrintingScryfallId)
     {
         _entries.Remove(GetEntry(selectedPrintingScryfallId));
-        new DeckValidationService().Validate(this);
+        Revalidate();
     }
 
     /// <summary>
@@ -175,7 +176,7 @@ public sealed class Deck
     public void MoveCard(string selectedPrintingScryfallId, DeckZone destination)
     {
         GetEntry(selectedPrintingScryfallId).MoveTo(destination);
-        new DeckValidationService().Validate(this);
+        Revalidate();
     }
 
     /// <summary>
@@ -207,12 +208,12 @@ public sealed class Deck
                 IsDirty = true;
             }
             _entries.Remove(source);
-            new DeckValidationService().Validate(this);
+            Revalidate();
             return;
         }
 
         source.ChangePrinting(selectedPrintingScryfallId);
-        new DeckValidationService().Validate(this);
+        Revalidate();
     }
 
     /// <summary>
@@ -243,6 +244,18 @@ public sealed class Deck
     public void MarkAsClean()
     {
         IsDirty = false;
+    }
+
+    /// <summary>
+    /// Restores the validity invariant: every entry's violation flags reflect the current deck state.
+    /// Every mutator that can change validity calls this as its last step.
+    /// </summary>
+    private void Revalidate()
+    {
+        foreach (var result in Validation.Evaluate(this))
+        {
+            result.Entry.ApplyValidation(result);
+        }
     }
 
     private DeckCardEntry GetEntry(string selectedPrintingScryfallId)

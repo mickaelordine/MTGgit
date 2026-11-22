@@ -12,9 +12,17 @@ test-unit:
 test-integration:
     dotnet test tests\CommanderDeckBuilder.Tests\CommanderDeckBuilder.Tests.csproj --no-restore -p:RunScryfallIntegrationTests=true --filter Category=Integration
 
+coverage:
+    if (Test-Path TestResults) { Remove-Item -Recurse -Force TestResults }
+    dotnet test tests\CommanderDeckBuilder.Tests\CommanderDeckBuilder.Tests.csproj --no-restore --collect:"XPlat Code Coverage" --results-directory TestResults
+    reportgenerator -reports:"TestResults\**\coverage.cobertura.xml" -targetdir:"TestResults\CoverageReport" -reporttypes:"Html;TextSummary" -assemblyfilters:"-CommanderDeckBuilder.Tests" -verbosity:Warning
+    Get-Content TestResults\CoverageReport\Summary.txt
+    Write-Host "HTML report: TestResults\CoverageReport\index.html"
+
 all:
     just build
     just test all
+    just coverage
 
 run:
     dotnet run --project src\CommanderDeckBuilder.UI\CommanderDeckBuilder.UI.csproj

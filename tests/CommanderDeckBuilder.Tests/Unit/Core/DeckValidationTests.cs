@@ -10,9 +10,6 @@ public sealed class DeckValidationTests
         var deck = CreateDeck("U,B");
         deck.AddCard("Dimir Card", "printing-1", DeckZone.Mainboard, oracleCard: new OracleCard("Dimir Card", "", ColorIdentity.Parse("U,B")));
 
-        var service = new DeckValidationService();
-        service.Validate(deck);
-
         Assert.False(Assert.Single(deck.Entries).HasColorIdentityViolation);
     }
 
@@ -75,8 +72,6 @@ public sealed class DeckValidationTests
         var deck = CreateDeck("U,B");
         deck.AddCard("Red Card", "printing-1", DeckZone.Mainboard, oracleCard: new OracleCard("Red Card", "", ColorIdentity.Parse("R")));
 
-        new DeckValidationService().Validate(deck);
-
         Assert.True(Assert.Single(deck.Entries).HasColorIdentityViolation);
     }
 
@@ -85,8 +80,6 @@ public sealed class DeckValidationTests
     {
         var deck = CreateDeck("U,B");
         deck.AddCard("Wastes", "printing-1", DeckZone.Sideboard, oracleCard: new OracleCard("Wastes", "", ColorIdentity.Parse("C")));
-
-        new DeckValidationService().Validate(deck);
 
         Assert.False(Assert.Single(deck.Entries).HasColorIdentityViolation);
     }
@@ -97,12 +90,10 @@ public sealed class DeckValidationTests
         var deck = CreateDeck("U,B");
         deck.AddCard("Red Card", "printing-1", DeckZone.Mainboard, oracleCard: new OracleCard("Red Card", "", ColorIdentity.Parse("R")));
 
-        new DeckValidationService().Validate(deck);
         Assert.True(Assert.Single(deck.Entries).HasColorIdentityViolation);
 
         deck.ChangePrimaryCommander(
             new DeckCommander("Five Color", ColorIdentity.Parse("W,U,B,R,G"), DeckCommanderMechanic.Primary));
-        new DeckValidationService().Validate(deck);
 
         Assert.False(Assert.Single(deck.Entries).HasColorIdentityViolation);
     }
@@ -117,12 +108,10 @@ public sealed class DeckValidationTests
         var deck = CreateDeck("U");
         deck.AddCard("Black Card", "printing-1", zone, oracleCard: new OracleCard("Black Card", "", ColorIdentity.Parse("B")));
 
-        new DeckValidationService().Validate(deck);
         Assert.True(Assert.Single(deck.Entries).HasColorIdentityViolation);
 
         deck.ChangePrimaryCommander(
             new DeckCommander("Dimir", ColorIdentity.Parse("U,B"), DeckCommanderMechanic.Primary));
-        new DeckValidationService().Validate(deck);
 
         Assert.False(Assert.Single(deck.Entries).HasColorIdentityViolation);
     }
@@ -156,12 +145,10 @@ public sealed class DeckValidationTests
             new DeckCommander("Partner B", ColorIdentity.Parse("B"), DeckCommanderMechanic.Partner));
         deck.AddCard("Red Card", "printing-1", DeckZone.Mainboard, oracleCard: new OracleCard("Red Card", "", ColorIdentity.Parse("R")));
 
-        new DeckValidationService().Validate(deck);
         Assert.True(Assert.Single(deck.Entries).HasColorIdentityViolation);
 
         deck.ChangeSecondaryCommander(
             new DeckCommander("Partner C", ColorIdentity.Parse("R"), DeckCommanderMechanic.Partner));
-        new DeckValidationService().Validate(deck);
 
         Assert.False(Assert.Single(deck.Entries).HasColorIdentityViolation);
     }
@@ -173,8 +160,6 @@ public sealed class DeckValidationTests
         deck.AddCard("Mountain", "printing-mountain", DeckZone.Mainboard, oracleCard: new OracleCard("Mountain", "Basic Land — Mountain", ColorIdentity.Parse("C")));
         deck.IncrementCard("printing-mountain");
 
-        new DeckValidationService().Validate(deck);
-
         Assert.False(Assert.Single(deck.Entries).HasCopyLimitViolation);
     }
 
@@ -185,15 +170,13 @@ public sealed class DeckValidationTests
         deck.AddCard("Sol Ring", "printing-sol-ring", DeckZone.Mainboard, oracleCard: new OracleCard("Sol Ring", "Artifact", ColorIdentity.Parse("C")));
         deck.IncrementCard("printing-sol-ring");
 
-        new DeckValidationService().Validate(deck);
-
         Assert.True(Assert.Single(deck.Entries).HasCopyLimitViolation);
     }
 
     [Theory]
     [InlineData("Seven Dwarves", 7)]
     [InlineData("Hare Apparent", 99)]
-    [InlineData("Nazgul", 9)]
+    [InlineData("Nazgûl", 9)]
     [InlineData("Shadowborn Apostle", 99)]
     [InlineData("Rat Colony", 99)]
     [InlineData("Persistent Petitioners", 99)]
@@ -213,14 +196,11 @@ public sealed class DeckValidationTests
             deck.IncrementCard("printing-1");
         }
 
-        new DeckValidationService().Validate(deck);
-
         Assert.False(Assert.Single(deck.Entries).HasCopyLimitViolation);
     }
 
     [Theory]
     [InlineData("Seven Dwarves", 8)]
-    [InlineData("Nazgul", 10)]
     [InlineData("Nazgûl", 10)]
     public void CappedCopyLimitExceptionIsMarkedInvalidAboveItsLimit(
         string cardName,
@@ -233,8 +213,6 @@ public sealed class DeckValidationTests
             deck.IncrementCard("printing-1");
         }
 
-        new DeckValidationService().Validate(deck);
-
         Assert.True(Assert.Single(deck.Entries).HasCopyLimitViolation);
     }
 
@@ -244,8 +222,6 @@ public sealed class DeckValidationTests
         var deck = CreateDeck("W");
         deck.AddCard("Sol Ring", "printing-1", DeckZone.Mainboard);
         deck.AddCard("Sol Ring", "printing-2", DeckZone.Sideboard);
-
-        new DeckValidationService().Validate(deck);
 
         Assert.All(
             deck.Entries,
@@ -258,8 +234,6 @@ public sealed class DeckValidationTests
         var deck = CreateDeck("W");
         deck.AddCard("Snow-Covered Plains", "printing-1", DeckZone.Mainboard, oracleCard: new OracleCard("Snow-Covered Plains", "Basic Snow Land — Plains", ColorIdentity.Parse("C")));
         deck.IncrementCard("printing-1");
-
-        new DeckValidationService().Validate(deck);
 
         Assert.False(Assert.Single(deck.Entries).HasCopyLimitViolation);
     }

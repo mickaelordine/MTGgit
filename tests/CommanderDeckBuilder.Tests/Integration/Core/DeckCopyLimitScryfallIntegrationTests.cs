@@ -21,8 +21,6 @@ public sealed class DeckCopyLimitScryfallIntegrationTests
         AddCard(deck, mapped);
         deck.IncrementCard(mapped.CardPrinting.ScryfallId);
 
-        new DeckValidationService().Validate(deck);
-
         var entry = Assert.Single(deck.Entries);
         Assert.True(entry.HasCopyLimitViolation);
         Assert.True(entry.HasDeckValidationViolation);
@@ -36,8 +34,6 @@ public sealed class DeckCopyLimitScryfallIntegrationTests
         var deck = CreateDeck();
         AddCard(deck, mapped);
         deck.IncrementCard(mapped.CardPrinting.ScryfallId);
-
-        new DeckValidationService().Validate(deck);
 
         var entry = Assert.Single(deck.Entries);
         Assert.False(entry.HasCopyLimitViolation);
@@ -61,8 +57,6 @@ public sealed class DeckCopyLimitScryfallIntegrationTests
         {
             deck.IncrementCard(mapped.CardPrinting.ScryfallId);
         }
-
-        new DeckValidationService().Validate(deck);
 
         var entry = Assert.Single(deck.Entries);
         Assert.Equal(quantity, entry.Quantity);
