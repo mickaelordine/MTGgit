@@ -84,10 +84,10 @@ public sealed class DeckCopyLimitScryfallIntegrationTests
             mapped.OracleCard.OracleId,
             mapped.CardPrinting.ScryfallId,
             DeckZone.Mainboard,
-            cardName: mapped.OracleCard.Name,
-            cardTypeLine: mapped.OracleCard.TypeLine);
-        deck.Entries.Single().CardColorIdentity =
-            ColorIdentity.Parse(mapped.OracleCard.ColorIdentity);
+            oracleCard: new OracleCard(
+                mapped.OracleCard.Name,
+                mapped.OracleCard.TypeLine,
+                ColorIdentity.Parse(mapped.OracleCard.ColorIdentity)));
     }
 
     private static async Task<MappedScryfallCard> GetMappedCardAsync(string name)

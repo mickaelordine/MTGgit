@@ -102,8 +102,7 @@ public sealed class Deck
         string selectedPrintingScryfallId,
         DeckZone zone,
         IEnumerable<string>? tags = null,
-        string? cardName = null,
-        string? cardTypeLine = null)
+        OracleCard? oracleCard = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(oracleId);
         ArgumentException.ThrowIfNullOrWhiteSpace(selectedPrintingScryfallId);
@@ -115,7 +114,12 @@ public sealed class Deck
         if (existingEntry is not null)
         {
             existingEntry.IncrementQuantity();
-            if (existingEntry.UpdateMetadata(cardName, cardTypeLine, tags))
+            if (oracleCard is not null)
+            {
+                existingEntry.AttachOracleCard(oracleCard);
+            }
+
+            if (existingEntry.AddTags(tags))
             {
                 IsDirty = true;
             }
@@ -129,8 +133,7 @@ public sealed class Deck
             1,
             zone,
             tags,
-            cardName,
-            cardTypeLine));
+            oracleCard));
         new DeckValidationService().Validate(this);
     }
 

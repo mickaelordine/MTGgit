@@ -8,8 +8,7 @@ public sealed class DeckValidationTests
     public void CardIdentityContainedByCommanderIsValid()
     {
         var deck = CreateDeck("U,B");
-        deck.AddCard("Dimir Card", "printing-1", DeckZone.Mainboard);
-        Assert.Single(deck.Entries).CardColorIdentity = ColorIdentity.Parse("U,B");
+        deck.AddCard("Dimir Card", "printing-1", DeckZone.Mainboard, oracleCard: new OracleCard("Dimir Card", "", ColorIdentity.Parse("U,B")));
 
         var service = new DeckValidationService();
         service.Validate(deck);
@@ -18,11 +17,63 @@ public sealed class DeckValidationTests
     }
 
     [Fact]
+    public void AddingCardWithOracleCardValidatesColorIdentityImmediately()
+    {
+        var deck = CreateDeck("U,B");
+
+        deck.AddCard(
+            "oracle-bolt",
+            "printing-1",
+            DeckZone.Mainboard,
+            oracleCard: new OracleCard("Lightning Bolt", "Instant", ColorIdentity.Parse("R")));
+
+        Assert.True(Assert.Single(deck.Entries).HasColorIdentityViolation);
+    }
+
+    [Fact]
+    public void ReaddingPrintingWithOracleCardReplacesAllFacts()
+    {
+        var deck = CreateDeck("U,B");
+        deck.AddCard("oracle-bolt", "printing-1", DeckZone.Mainboard);
+
+        deck.AddCard(
+            "oracle-bolt",
+            "printing-1",
+            DeckZone.Mainboard,
+            oracleCard: new OracleCard("Lightning Bolt", "Instant", ColorIdentity.Parse("R")));
+
+        var entry = Assert.Single(deck.Entries);
+        Assert.Equal("Lightning Bolt", entry.CardName);
+        Assert.Equal("Instant", entry.CardTypeLine);
+        Assert.Equal(ColorIdentity.Parse("R"), entry.CardColorIdentity);
+        Assert.True(entry.HasColorIdentityViolation);
+        Assert.Equal(2, entry.Quantity);
+    }
+
+    [Fact]
+    public void ReaddingPrintingWithoutOracleCardKeepsExistingFacts()
+    {
+        var deck = CreateDeck("U,B");
+        deck.AddCard(
+            "oracle-bolt",
+            "printing-1",
+            DeckZone.Mainboard,
+            oracleCard: new OracleCard("Lightning Bolt", "Instant", ColorIdentity.Parse("R")));
+
+        deck.AddCard("oracle-bolt", "printing-1", DeckZone.Mainboard);
+
+        var entry = Assert.Single(deck.Entries);
+        Assert.Equal("Lightning Bolt", entry.CardName);
+        Assert.Equal("Instant", entry.CardTypeLine);
+        Assert.Equal(ColorIdentity.Parse("R"), entry.CardColorIdentity);
+        Assert.True(entry.HasColorIdentityViolation);
+    }
+
+    [Fact]
     public void CardOutsideCommanderIdentityIsMarkedInvalid()
     {
         var deck = CreateDeck("U,B");
-        deck.AddCard("Red Card", "printing-1", DeckZone.Mainboard);
-        Assert.Single(deck.Entries).CardColorIdentity = ColorIdentity.Parse("R");
+        deck.AddCard("Red Card", "printing-1", DeckZone.Mainboard, oracleCard: new OracleCard("Red Card", "", ColorIdentity.Parse("R")));
 
         new DeckValidationService().Validate(deck);
 
@@ -33,8 +84,7 @@ public sealed class DeckValidationTests
     public void ColorlessCardIsValidForColoredCommander()
     {
         var deck = CreateDeck("U,B");
-        deck.AddCard("Wastes", "printing-1", DeckZone.Sideboard);
-        Assert.Single(deck.Entries).CardColorIdentity = ColorIdentity.Parse("C");
+        deck.AddCard("Wastes", "printing-1", DeckZone.Sideboard, oracleCard: new OracleCard("Wastes", "", ColorIdentity.Parse("C")));
 
         new DeckValidationService().Validate(deck);
 
@@ -45,8 +95,7 @@ public sealed class DeckValidationTests
     public void ChangingCommanderRevalidatesExistingCards()
     {
         var deck = CreateDeck("U,B");
-        deck.AddCard("Red Card", "printing-1", DeckZone.Mainboard);
-        Assert.Single(deck.Entries).CardColorIdentity = ColorIdentity.Parse("R");
+        deck.AddCard("Red Card", "printing-1", DeckZone.Mainboard, oracleCard: new OracleCard("Red Card", "", ColorIdentity.Parse("R")));
 
         new DeckValidationService().Validate(deck);
         Assert.True(Assert.Single(deck.Entries).HasColorIdentityViolation);
@@ -66,8 +115,7 @@ public sealed class DeckValidationTests
     public void EveryZoneIsRevalidatedAfterCommanderChange(DeckZone zone)
     {
         var deck = CreateDeck("U");
-        deck.AddCard("Black Card", "printing-1", zone);
-        Assert.Single(deck.Entries).CardColorIdentity = ColorIdentity.Parse("B");
+        deck.AddCard("Black Card", "printing-1", zone, oracleCard: new OracleCard("Black Card", "", ColorIdentity.Parse("B")));
 
         new DeckValidationService().Validate(deck);
         Assert.True(Assert.Single(deck.Entries).HasColorIdentityViolation);
@@ -106,8 +154,7 @@ public sealed class DeckValidationTests
         var deck = Deck.Create(
             new DeckCommander("Partner A", ColorIdentity.Parse("U"), DeckCommanderMechanic.Partner),
             new DeckCommander("Partner B", ColorIdentity.Parse("B"), DeckCommanderMechanic.Partner));
-        deck.AddCard("Red Card", "printing-1", DeckZone.Mainboard);
-        Assert.Single(deck.Entries).CardColorIdentity = ColorIdentity.Parse("R");
+        deck.AddCard("Red Card", "printing-1", DeckZone.Mainboard, oracleCard: new OracleCard("Red Card", "", ColorIdentity.Parse("R")));
 
         new DeckValidationService().Validate(deck);
         Assert.True(Assert.Single(deck.Entries).HasColorIdentityViolation);
@@ -123,10 +170,9 @@ public sealed class DeckValidationTests
     public void BasicLandMayHaveMultipleCopies()
     {
         var deck = CreateDeck("W");
-        deck.AddCard("Mountain", "printing-mountain", DeckZone.Mainboard);
+        deck.AddCard("Mountain", "printing-mountain", DeckZone.Mainboard, oracleCard: new OracleCard("Mountain", "Basic Land — Mountain", ColorIdentity.Parse("C")));
         deck.IncrementCard("printing-mountain");
 
-        Assert.Single(deck.Entries).CardTypeLine = "Basic Land — Mountain";
         new DeckValidationService().Validate(deck);
 
         Assert.False(Assert.Single(deck.Entries).HasCopyLimitViolation);
@@ -136,10 +182,9 @@ public sealed class DeckValidationTests
     public void NonBasicCardWithMultipleCopiesIsMarkedInvalid()
     {
         var deck = CreateDeck("W");
-        deck.AddCard("Sol Ring", "printing-sol-ring", DeckZone.Mainboard);
+        deck.AddCard("Sol Ring", "printing-sol-ring", DeckZone.Mainboard, oracleCard: new OracleCard("Sol Ring", "Artifact", ColorIdentity.Parse("C")));
         deck.IncrementCard("printing-sol-ring");
 
-        Assert.Single(deck.Entries).CardTypeLine = "Artifact";
         new DeckValidationService().Validate(deck);
 
         Assert.True(Assert.Single(deck.Entries).HasCopyLimitViolation);
@@ -162,13 +207,12 @@ public sealed class DeckValidationTests
     public void NamedCopyLimitExceptionIsAllowed(string cardName, int quantity)
     {
         var deck = CreateDeck("W");
-        deck.AddCard(cardName, "printing-1", DeckZone.Mainboard);
+        deck.AddCard(cardName, "printing-1", DeckZone.Mainboard, oracleCard: new OracleCard(cardName, "Instant", ColorIdentity.Parse("C")));
         for (var copy = 1; copy < quantity; copy++)
         {
             deck.IncrementCard("printing-1");
         }
 
-        Assert.Single(deck.Entries).CardTypeLine = "Instant";
         new DeckValidationService().Validate(deck);
 
         Assert.False(Assert.Single(deck.Entries).HasCopyLimitViolation);
@@ -212,31 +256,22 @@ public sealed class DeckValidationTests
     public void BasicSnowLandAllowsMultipleCopies()
     {
         var deck = CreateDeck("W");
-        deck.AddCard("Snow-Covered Plains", "printing-1", DeckZone.Mainboard);
+        deck.AddCard("Snow-Covered Plains", "printing-1", DeckZone.Mainboard, oracleCard: new OracleCard("Snow-Covered Plains", "Basic Snow Land — Plains", ColorIdentity.Parse("C")));
         deck.IncrementCard("printing-1");
 
-        Assert.Single(deck.Entries).CardTypeLine = "Basic Snow Land — Plains";
         new DeckValidationService().Validate(deck);
 
         Assert.False(Assert.Single(deck.Entries).HasCopyLimitViolation);
     }
 
     [Fact]
-    public void ReaddingExistingPrintingUpdatesCardMetadataAndTags()
+    public void ReaddingExistingPrintingMergesTags()
     {
         var deck = CreateDeck("W");
         deck.AddCard("Sol Ring", "printing-1", DeckZone.Mainboard);
-        deck.AddCard(
-            "Sol Ring",
-            "printing-1",
-            DeckZone.Mainboard,
-            ["#Ramp"],
-            "Sol Ring",
-            "Artifact");
+        deck.AddCard("Sol Ring", "printing-1", DeckZone.Mainboard, ["#Ramp"]);
 
         var entry = Assert.Single(deck.Entries);
-        Assert.Equal("Sol Ring", entry.CardName);
-        Assert.Equal("Artifact", entry.CardTypeLine);
         Assert.Equal(["#ramp"], entry.Tags);
         Assert.Equal(2, entry.Quantity);
     }

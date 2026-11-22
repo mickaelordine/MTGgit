@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace CommanderDeckBuilder.Core;
 
 /// <summary>
@@ -14,8 +16,7 @@ public sealed class DeckCardEntry
         int quantity,
         DeckZone zone,
         IEnumerable<string>? tags = null,
-        string? cardName = null,
-        string? cardTypeLine = null)
+        OracleCard? oracleCard = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(oracleId);
         ArgumentException.ThrowIfNullOrWhiteSpace(selectedPrintingScryfallId);
@@ -26,9 +27,21 @@ public sealed class DeckCardEntry
         Quantity = quantity;
         Zone = zone;
         Tags = NormalizeTags(tags);
-        CardColorIdentity = ColorIdentity.Parse("C");
-        CardName = string.IsNullOrWhiteSpace(cardName) ? oracleId : cardName;
-        CardTypeLine = cardTypeLine ?? string.Empty;
+        AttachOracleCard(oracleCard ?? OracleCard.Placeholder(oracleId));
+    }
+
+    /// <summary>
+    /// Replaces the entry's Oracle facts (name, type line, color identity) as one unit.
+    /// </summary>
+    /// <param name="oracleCard">The complete Oracle facts of the card.</param>
+    [MemberNotNull(nameof(CardName), nameof(CardTypeLine))]
+    public void AttachOracleCard(OracleCard oracleCard)
+    {
+        ArgumentNullException.ThrowIfNull(oracleCard);
+
+        CardName = oracleCard.Name;
+        CardTypeLine = oracleCard.TypeLine;
+        CardColorIdentity = oracleCard.ColorIdentity;
     }
 
     /// <summary>Gets the Scryfall oracle identifier.</summary>
@@ -49,16 +62,14 @@ public sealed class DeckCardEntry
     /// <summary>Gets whether the entry is outside the effective Commander color identity.</summary>
     public bool HasColorIdentityViolation { get; private set; }
 
-    /// <summary>
-    /// Gets or sets the card color identity used by deck validation.
-    /// </summary>
-    public ColorIdentity CardColorIdentity { get; set; }
+    /// <summary>Gets the card color identity used by deck validation (attached via <see cref="AttachOracleCard"/>; colorless placeholder otherwise).</summary>
+    public ColorIdentity CardColorIdentity { get; private set; }
 
-    /// <summary>Gets or sets the oracle card name for copy-limit validation.</summary>
-    public string CardName { get; set; }
+    /// <summary>Gets the oracle card name for copy-limit validation (placeholder: the oracle identifier).</summary>
+    public string CardName { get; private set; }
 
-    /// <summary>Gets or sets the Scryfall type line for basic-land and copy-limit validation.</summary>
-    public string CardTypeLine { get; set; }
+    /// <summary>Gets the Scryfall type line for basic-land and copy-limit validation (placeholder: empty).</summary>
+    public string CardTypeLine { get; private set; }
 
     /// <summary>Gets whether quantity violates Commander copy-limit rules.</summary>
     public bool HasCopyLimitViolation { get; private set; }
@@ -78,25 +89,13 @@ public sealed class DeckCardEntry
     }
 
     /// <summary>
-    /// Updates Oracle-level metadata and merges custom tags for an existing printing entry.
+    /// Adds several custom tags to the entry.
     /// </summary>
-    public bool UpdateMetadata(
-        string? cardName,
-        string? cardTypeLine,
-        IEnumerable<string>? tags)
+    /// <param name="tags">The raw tags to add; may be null.</param>
+    /// <returns><c>true</c> when at least one tag actually changed the tag set.</returns>
+    public bool AddTags(IEnumerable<string>? tags)
     {
         var tagsChanged = false;
-
-        if (!string.IsNullOrWhiteSpace(cardName))
-        {
-            CardName = cardName;
-        }
-
-        if (!string.IsNullOrWhiteSpace(cardTypeLine))
-        {
-            CardTypeLine = cardTypeLine;
-        }
-
         foreach (var tag in tags ?? [])
         {
             tagsChanged |= AddTag(tag);

@@ -49,8 +49,8 @@ public sealed class DeckViewProjectionTests
     public void TagsOffGroupsCardsByCategory()
     {
         var deck = CreateDeck();
-        deck.AddCard("Bear", "printing-bear", DeckZone.Mainboard, cardTypeLine: "Creature");
-        deck.AddCard("Bolt", "printing-bolt", DeckZone.Mainboard, cardTypeLine: "Instant");
+        deck.AddCard("Bear", "printing-bear", DeckZone.Mainboard, oracleCard: new OracleCard("Bear", "Creature", ColorIdentity.Parse("C")));
+        deck.AddCard("Bolt", "printing-bolt", DeckZone.Mainboard, oracleCard: new OracleCard("Bolt", "Instant", ColorIdentity.Parse("C")));
 
         var groups = new DeckViewProjection().GetGroups(deck, tagsEnabled: false);
 
@@ -62,7 +62,7 @@ public sealed class DeckViewProjectionTests
     public void TagsOnGroupsTaggedCardsByTag()
     {
         var deck = CreateDeck();
-        deck.AddCard("Card", "printing", DeckZone.Mainboard, ["#Ramp"], cardTypeLine: "Artifact");
+        deck.AddCard("Card", "printing", DeckZone.Mainboard, ["#Ramp"], oracleCard: new OracleCard("Card", "Artifact", ColorIdentity.Parse("C")));
 
         var groups = new DeckViewProjection().GetGroups(deck, tagsEnabled: true);
 
@@ -73,7 +73,7 @@ public sealed class DeckViewProjectionTests
     public void UntaggedCardsAreGroupedByCategoryUnderUntagged()
     {
         var deck = CreateDeck();
-        deck.AddCard("Bear", "printing-bear", DeckZone.Mainboard, cardTypeLine: "Creature");
+        deck.AddCard("Bear", "printing-bear", DeckZone.Mainboard, oracleCard: new OracleCard("Bear", "Creature", ColorIdentity.Parse("C")));
 
         var groups = new DeckViewProjection().GetGroups(deck, tagsEnabled: true);
 
@@ -86,7 +86,7 @@ public sealed class DeckViewProjectionTests
     public void MultiTaggedCardAppearsInEveryTagGroup()
     {
         var deck = CreateDeck();
-        deck.AddCard("Card", "printing", DeckZone.Mainboard, ["#Ramp", "#Wincon"], cardTypeLine: "Artifact");
+        deck.AddCard("Card", "printing", DeckZone.Mainboard, ["#Ramp", "#Wincon"], oracleCard: new OracleCard("Card", "Artifact", ColorIdentity.Parse("C")));
 
         var groups = new DeckViewProjection().GetGroups(deck, tagsEnabled: true);
         var ramp = Assert.Single(groups, group => group.Name == "#ramp");
@@ -143,6 +143,6 @@ public sealed class DeckViewProjectionTests
             printingId,
             1,
             DeckZone.Mainboard,
-            cardTypeLine: typeLine);
+            oracleCard: new OracleCard(oracleId, typeLine, ColorIdentity.Parse("C")));
     }
 }

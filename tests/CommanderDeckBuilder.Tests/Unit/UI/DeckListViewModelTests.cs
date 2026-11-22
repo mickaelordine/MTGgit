@@ -9,8 +9,8 @@ public sealed class DeckListViewModelTests
     public void DefaultGroupsExposeCardCategories()
     {
         var deck = CreateDeck();
-        deck.AddCard("Bear", "printing-bear", DeckZone.Mainboard, cardTypeLine: "Creature");
-        deck.AddCard("Bolt", "printing-bolt", DeckZone.Mainboard, cardTypeLine: "Instant");
+        deck.AddCard("Bear", "printing-bear", DeckZone.Mainboard, oracleCard: new OracleCard("Bear", "Creature", ColorIdentity.Parse("C")));
+        deck.AddCard("Bolt", "printing-bolt", DeckZone.Mainboard, oracleCard: new OracleCard("Bolt", "Instant", ColorIdentity.Parse("C")));
 
         var viewModel = new DeckListViewModel(deck);
 
@@ -22,7 +22,7 @@ public sealed class DeckListViewModelTests
     public void EnablingTagsRegroupsByTag()
     {
         var deck = CreateDeck();
-        deck.AddCard("Card", "printing", DeckZone.Mainboard, ["#Ramp"], cardTypeLine: "Artifact");
+        deck.AddCard("Card", "printing", DeckZone.Mainboard, ["#Ramp"], oracleCard: new OracleCard("Card", "Artifact", ColorIdentity.Parse("C")));
         var viewModel = new DeckListViewModel(deck);
 
         viewModel.TagsEnabled = true;
@@ -34,8 +34,8 @@ public sealed class DeckListViewModelTests
     public void SettingTagFilterLimitsGroupsToMatches()
     {
         var deck = CreateDeck();
-        deck.AddCard("Bear", "printing-bear", DeckZone.Mainboard, ["#Ramp"], cardTypeLine: "Creature");
-        deck.AddCard("Bolt", "printing-bolt", DeckZone.Mainboard, ["#Draw"], cardTypeLine: "Instant");
+        deck.AddCard("Bear", "printing-bear", DeckZone.Mainboard, ["#Ramp"], oracleCard: new OracleCard("Bear", "Creature", ColorIdentity.Parse("C")));
+        deck.AddCard("Bolt", "printing-bolt", DeckZone.Mainboard, ["#Draw"], oracleCard: new OracleCard("Bolt", "Instant", ColorIdentity.Parse("C")));
         var viewModel = new DeckListViewModel(deck) { TagsEnabled = true };
 
         viewModel.TagFilter = "  #  RAMP ";
@@ -49,7 +49,7 @@ public sealed class DeckListViewModelTests
     public void TogglingTagsRaisesGroupsCollectionChanged()
     {
         var deck = CreateDeck();
-        deck.AddCard("Card", "printing", DeckZone.Mainboard, ["#Ramp"], cardTypeLine: "Artifact");
+        deck.AddCard("Card", "printing", DeckZone.Mainboard, ["#Ramp"], oracleCard: new OracleCard("Card", "Artifact", ColorIdentity.Parse("C")));
         var viewModel = new DeckListViewModel(deck);
         var raised = false;
         viewModel.Groups.CollectionChanged += (_, _) => raised = true;
@@ -63,8 +63,8 @@ public sealed class DeckListViewModelTests
     public void ClearingTagFilterRestoresGroupedContent()
     {
         var deck = CreateDeck();
-        deck.AddCard("Bear", "printing-bear", DeckZone.Mainboard, ["#Ramp"], cardTypeLine: "Creature");
-        deck.AddCard("Bolt", "printing-bolt", DeckZone.Mainboard, ["#Draw"], cardTypeLine: "Instant");
+        deck.AddCard("Bear", "printing-bear", DeckZone.Mainboard, ["#Ramp"], oracleCard: new OracleCard("Bear", "Creature", ColorIdentity.Parse("C")));
+        deck.AddCard("Bolt", "printing-bolt", DeckZone.Mainboard, ["#Draw"], oracleCard: new OracleCard("Bolt", "Instant", ColorIdentity.Parse("C")));
         var viewModel = new DeckListViewModel(deck) { TagsEnabled = true, TagFilter = "#Ramp" };
 
         viewModel.TagFilter = null;

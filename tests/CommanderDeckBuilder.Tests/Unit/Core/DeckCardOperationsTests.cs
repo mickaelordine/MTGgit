@@ -19,6 +19,46 @@ public sealed class DeckCardOperationsTests
     }
 
     [Fact]
+    public void EntryCreatedWithOracleCardExposesItsFacts()
+    {
+        var entry = new DeckCardEntry(
+            "oracle-delver",
+            "printing-1",
+            1,
+            DeckZone.Mainboard,
+            oracleCard: new OracleCard(
+                "Delver of Secrets",
+                "Creature — Human Wizard",
+                ColorIdentity.Parse("U")));
+
+        Assert.Equal("Delver of Secrets", entry.CardName);
+        Assert.Equal("Creature — Human Wizard", entry.CardTypeLine);
+        Assert.Equal(ColorIdentity.Parse("U"), entry.CardColorIdentity);
+    }
+
+    [Fact]
+    public void AttachOracleCardReplacesPlaceholderFactsInOneCall()
+    {
+        var entry = new DeckCardEntry("oracle-bolt", "printing-1", 1, DeckZone.Mainboard);
+
+        entry.AttachOracleCard(new OracleCard("Lightning Bolt", "Instant", ColorIdentity.Parse("R")));
+
+        Assert.Equal("Lightning Bolt", entry.CardName);
+        Assert.Equal("Instant", entry.CardTypeLine);
+        Assert.Equal(ColorIdentity.Parse("R"), entry.CardColorIdentity);
+    }
+
+    [Fact]
+    public void EntryWithoutFactsKeepsPlaceholderDefaults()
+    {
+        var entry = new DeckCardEntry("oracle-unknown", "printing-1", 1, DeckZone.Mainboard);
+
+        Assert.Equal("oracle-unknown", entry.CardName);
+        Assert.Equal(string.Empty, entry.CardTypeLine);
+        Assert.Equal(ColorIdentity.Parse("C"), entry.CardColorIdentity);
+    }
+
+    [Fact]
     public void AddingSamePrintingIncrementsQuantity()
     {
         var deck = CreateDeck();
