@@ -11,13 +11,14 @@ public sealed class TagTests
     //   [x] ParsesGlobalTagWithCanonicalValue
     //   [x] RemovesWhitespaceAndLowercasesName
     //   [x] RejectsTagWithoutPrefix
+    //   [x] RejectsBlankTag (split from RejectsTagWithoutPrefix at suite-close review)
     //   [x] RejectsTagWithoutName
     //   verification:
     //   [x] TagsWithSameCanonicalValueAreEqual
     //
     // Suite B — Tag shadow relationship
-    //   [ ] GlobalTagShadowsItsLocalTwin
-    //   [ ] TagDoesNotShadowOtherScopeOrOtherName
+    //   [x] GlobalTagShadowsItsLocalTwin
+    //   [x] TagDoesNotShadowOtherScopeOrOtherName
 
     [Fact]
     public void ParsesLocalTagWithLowercaseName()
@@ -39,20 +40,27 @@ public sealed class TagTests
         Assert.Equal("#!wincon", tag.Value);
     }
 
-    [Fact]
-    public void RemovesWhitespaceAndLowercasesName()
+    [Theory]
+    [InlineData("  #Storm Scale ")]
+    [InlineData("  # Storm Scale ")]
+    public void RemovesWhitespaceAndLowercasesName(string raw)
     {
-        var tag = Tag.Parse("  #Storm Scale ");
+        var tag = Tag.Parse(raw);
 
         Assert.Equal("#stormscale", tag.Value);
     }
 
+    [Fact]
+    public void RejectsTagWithoutPrefix()
+    {
+        Assert.Throws<ArgumentException>(() => Tag.Parse("ramp"));
+    }
+
     [Theory]
-    [InlineData("ramp")]
     [InlineData("")]
     [InlineData("  ")]
     [InlineData(null)]
-    public void RejectsTagWithoutPrefix(string? raw)
+    public void RejectsBlankTag(string? raw)
     {
         Assert.ThrowsAny<ArgumentException>(() => Tag.Parse(raw!));
     }
@@ -71,5 +79,21 @@ public sealed class TagTests
     {
         Assert.Equal(Tag.Parse("#Ramp"), Tag.Parse("# ramp"));
         Assert.NotEqual(Tag.Parse("#ramp"), Tag.Parse("#!ramp"));
+    }
+
+    [Fact]
+    public void GlobalTagShadowsItsLocalTwin()
+    {
+        Assert.True(Tag.Parse("#!ramp").Shadows(Tag.Parse("#ramp")));
+    }
+
+    [Theory]
+    [InlineData("#ramp", "#!ramp")]
+    [InlineData("#!ramp", "#draw")]
+    [InlineData("#!ramp", "#!ramp")]
+    [InlineData("#ramp", "#ramp")]
+    public void TagDoesNotShadowOtherScopeOrOtherName(string tag, string other)
+    {
+        Assert.False(Tag.Parse(tag).Shadows(Tag.Parse(other)));
     }
 }

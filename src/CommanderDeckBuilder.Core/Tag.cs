@@ -72,6 +72,16 @@ public readonly record struct Tag
         return new Tag(scope, name);
     }
 
+    /// <summary>
+    /// Tells whether this tag supersedes another one on the same card entry.
+    /// </summary>
+    /// <param name="other">The tag that may be shadowed.</param>
+    /// <returns><c>true</c> when <paramref name="other"/> must give way to this tag.</returns>
+    public bool Shadows(Tag other) =>
+        Scope == TagScope.Global
+        && other.Scope == TagScope.Local
+        && string.Equals(Name, other.Name, StringComparison.Ordinal);
+
     private static string PrefixOf(TagScope scope) =>
         scope == TagScope.Global ? GlobalPrefix : LocalPrefix;
 

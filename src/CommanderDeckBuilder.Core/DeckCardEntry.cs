@@ -243,26 +243,5 @@ public sealed class DeckCardEntry
             .ToArray();
     }
 
-    private static string NormalizeTag(string tag)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
-
-        var normalized = TagText.Normalize(tag);
-
-        var prefix = normalized.StartsWith("#!", StringComparison.Ordinal)
-            ? "#!"
-            : normalized.StartsWith("#", StringComparison.Ordinal)
-                ? "#"
-                : throw new ArgumentException(
-                    "Custom tags must start with '#' or '#!'.",
-                    nameof(tag));
-
-        var name = normalized[prefix.Length..];
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            throw new ArgumentException("Custom tags must include a name.", nameof(tag));
-        }
-
-        return prefix + name;
-    }
+    private static string NormalizeTag(string tag) => Tag.Parse(tag).Value;
 }
